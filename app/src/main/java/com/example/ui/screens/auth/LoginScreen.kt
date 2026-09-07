@@ -22,6 +22,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Apartment
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
@@ -67,9 +69,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.Site
+import com.example.ui.components.CloudSyncDialog
 import com.example.ui.components.RpvcBrandHeader
 import com.example.ui.theme.AmberContainer
 import com.example.ui.theme.AmberPrimary
+import com.example.ui.theme.ForestGreen
 import com.example.ui.theme.OnAmberContainer
 import com.example.ui.theme.SlateSecondary
 import com.example.ui.viewmodel.ConstructionViewModel
@@ -92,6 +96,15 @@ fun LoginScreen(
     var selectedSite by remember { mutableStateOf<Site?>(null) }
     var siteDropdownExpanded by remember { mutableStateOf(false) }
 
+    var showCloudSyncDialog by remember { mutableStateOf(false) }
+
+    if (showCloudSyncDialog) {
+        CloudSyncDialog(
+            viewModel = viewModel,
+            onDismiss = { showCloudSyncDialog = false }
+        )
+    }
+
     val scrollState = rememberScrollState()
 
     Column(
@@ -102,7 +115,44 @@ fun LoginScreen(
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        // Top Left Row with Cloud Sync Option on the LEFT side of the screen
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.Start, // Positioned on the LEFT side
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val isConfigured = viewModel.syncManager?.isConfigured() == true
+
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isConfigured) ForestGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { showCloudSyncDialog = true }
+                    .testTag("btn_login_left_cloud_sync")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isConfigured) Icons.Default.CloudDone else Icons.Default.CloudSync,
+                        contentDescription = "Cloud Sync",
+                        tint = if (isConfigured) ForestGreen else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = if (isConfigured) "🟢 Cloud Sync Active" else "☁️ Cloud Sync",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isConfigured) ForestGreen else MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
 
         // RPVC Official Brand Header & Logo
         RpvcBrandHeader(
@@ -234,11 +284,49 @@ fun LoginScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = if (selectedTabIndex == 0) "Site Incharge Sign In" else "Admin Executive Sign In",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                // Header Row inside Login Panel: Left side Cloud Sync button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val isConfigured = viewModel.syncManager?.isConfigured() == true
+
+                    // LEFT SIDE Cloud Sync Option
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isConfigured) ForestGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { showCloudSyncDialog = true }
+                            .testTag("btn_panel_left_cloud_sync")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isConfigured) Icons.Default.CloudDone else Icons.Default.CloudSync,
+                                contentDescription = "Cloud Sync Settings",
+                                tint = if (isConfigured) ForestGreen else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = if (isConfigured) "Sync On 🟢" else "Cloud Sync ☁️",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isConfigured) ForestGreen else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (selectedTabIndex == 0) "Site Incharge Sign In" else "Admin Executive Sign In",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 // Mobile Number
                 OutlinedTextField(
