@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Center White Badge Circle in 66dp Safe Area -->
+    <path
+        android:pathData="M54,22 A32,32 0 1,1 53.9,22 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="22"
+                android:startY="22"
+                android:endX="86"
+                android:endY="86"
+                android:type="linear">
+                <item android:color="#2D3748" android:offset="0.0" />
+                <item android:color="#742A2A" android:offset="0.5" />
+                <item android:color="#1A202C" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 A28,28 0 1,1 53.9,26 Z" />
+
+    <!-- Construction Tower Cross (Maroon) -->
+    <path
+        android:pathData="M43,36 L45,36 L46,70 L42,70 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="42"
+                android:startY="36"
+                android:endX="46"
+                android:endY="70"
+                android:type="linear">
+                <item android:color="#9B2C2C" android:offset="0.0" />
+                <item android:color="#742A2A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path
+        android:pathData="M28,42 L42,41 L80,44 L42,45 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="41"
+                android:endX="80"
+                android:endY="45"
+                android:type="linear">
+                <item android:color="#9B2C2C" android:offset="0.0" />
+                <item android:color="#742A2A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 'R' Character -->
+    <path
+        android:fillColor="#1A202C"
+        android:pathData="M44,48 C44,48 50,47 56,47 C63,47 68,50 68,55 C68,59 64,62 59,63 L70,68 C71,69 70,70 68,70 L58,64 L58,68 C58,69 60,70 61,70 L51,70 C53,70 54,69 54,68 L54,50 C54,49 53,49 51,48 Z M54,52 L54,61 C56,61 60,61 62,60 C65,59 66,57 66,55 C66,51 63,50 58,50 C56,50 54,51 54,52 Z" />
+
+    <!-- 'P' Character -->
+    <path
+        android:fillColor="#1A202C"
+        android:pathData="M66,49 C66,49 71,48 78,48 C85,48 89,51 89,57 C89,63 84,66 76,66 L72,66 L72,68 C72,69 73,70 74,70 L66,70 C67,70 69,69 69,68 L69,51 C69,50 67,49 66,49 Z M72,53 L72,62 L75,62 C80,62 84,60 84,57 C84,53 81,51 76,51 C74,51 72,52 72,53 Z" />
+
+    <!-- Bottom Red Banner Ribbon -->
+    <path
+        android:pathData="M24,74 L84,74 L84,86 L24,86 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="24"
+                android:startY="74"
+                android:endX="84"
+                android:endY="86"
+                android:type="linear">
+                <item android:color="#E53E3E" android:offset="0.0" />
+                <item android:color="#9B2C2C" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path
+        android:fillColor="#FEB2B2"
+        android:pathData="M24,74 L84,74 L84,75.5 L24,75.5 Z" />
+
+</vector>

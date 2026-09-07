@@ -1,0 +1,6 @@
+{
+  "name": "RPVC Pvt Ltd",
+  "description": "R P V C PVT. LTD (R.P. Vision Construction Pvt. Ltd.) - Official Site & Expense Management System with Site Incharge & Admin consoles, Daybook, and Bill attachments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Outer Circular Rim with Metallic Gradient -->
+    <path
+        android:pathData="M100,10 A90,90 0 1,1 99.9,10 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="20"
+                android:startY="20"
+                android:endX="180"
+                android:endY="180"
+                android:type="linear">
+                <item android:color="#2D3748" android:offset="0.0" />
+                <item android:color="#742A2A" android:offset="0.5" />
+                <item android:color="#1A202C" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Circle Background (Clean Crisp White Canvas) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M100,22 A78,78 0 1,1 99.9,22 Z" />
+
+    <!-- Thin Charcoal Inner Border -->
+    <path
+        android:strokeColor="#CBD5E0"
+        android:strokeWidth="1.5"
+        android:pathData="M100,24 A76,76 0 1,1 99.9,24 Z" />
+
+    <!-- Construction Crosshair / Tower Level Needle (Maroon Crimson) -->
+    <!-- Vertical Tower Pillar -->
+    <path
+        android:pathData="M68,54 L72,54 L74,136 L65,136 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="65"
+                android:startY="54"
+                android:endX="74"
+                android:endY="136"
+                android:type="linear">
+                <item android:color="#9B2C2C" android:offset="0.0" />
+                <item android:color="#742A2A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Horizontal Sharp Needle Bar -->
+    <path
+        android:pathData="M28,70 L65,68 L172,74 L65,76 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="68"
+                android:endX="172"
+                android:endY="76"
+                android:type="linear">
+                <item android:color="#822727" android:offset="0.0" />
+                <item android:color="#9B2C2C" android:offset="0.5" />
+                <item android:color="#742A2A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Center 'R' Glyph in Bold Charcoal/Black Serif -->
+    <path
+        android:fillColor="#1A202C"
+        android:pathData="M72,82 C72,82 82,81 96,81 C112,81 122,87 122,98 C122,107 114,113 103,115 L128,124 C132,125 133,127 131,128 C129,129 119,129 114,127 L92,118 L92,124 C92,126 95,127 98,128 L80,128 C83,127 86,126 86,124 L86,86 C86,84 83,83 80,82 Z M86,89 L86,112 C90,112 97,112 102,111 C110,109 114,105 114,98 C114,91 108,88 98,88 C93,88 89,89 86,89 Z" />
+
+    <!-- Center 'P' Glyph in Bold Charcoal/Black Serif -->
+    <path
+        android:fillColor="#1A202C"
+        android:pathData="M116,84 C116,84 126,83 140,83 C155,83 165,89 165,101 C165,113 154,119 138,119 L128,119 L128,124 C128,126 131,127 134,128 L116,128 C119,127 122,126 122,124 L122,88 C122,86 119,85 116,84 Z M128,91 L128,112 L136,112 C146,112 153,108 153,101 C153,94 147,90 137,90 C132,90 129,91 128,91 Z" />
+
+    <!-- Bottom Ribbon Tails (Shadow Fold) -->
+    <path
+        android:fillColor="#4A1D24"
+        android:pathData="M15,168 L40,160 L40,185 Z M185,168 L160,160 L160,185 Z" />
+
+    <!-- Bottom Ribbon Tails Left and Right -->
+    <path
+        android:fillColor="#9B2C2C"
+        android:pathData="M15,168 L42,154 L42,176 L25,188 Z M185,168 L158,154 L158,176 L175,188 Z" />
+
+    <!-- Main Front Banner Ribbon (Crimson / Red Gradient) -->
+    <path
+        android:pathData="M30,154 L170,154 L170,182 L30,182 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="30"
+                android:startY="154"
+                android:endX="170"
+                android:endY="182"
+                android:type="linear">
+                <item android:color="#E53E3E" android:offset="0.0" />
+                <item android:color="#9B2C2C" android:offset="0.5" />
+                <item android:color="#742A2A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Top & Bottom Golden/White Highlights on Banner -->
+    <path
+        android:fillColor="#FEB2B2"
+        android:pathData="M30,154 L170,154 L170,156 L30,156 Z" />
+    <path
+        android:fillColor="#4A1D24"
+        android:pathData="M30,180 L170,180 L170,182 L30,182 Z" />
+
+</vector>
