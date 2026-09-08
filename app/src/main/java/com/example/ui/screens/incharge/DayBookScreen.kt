@@ -209,7 +209,7 @@ fun DayBookScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.setInchargeSearch(it) },
-                placeholder = { Text("Search by party, category, particulars, amount...") },
+                placeholder = { Text("Search by Party / Vendor Name, category, amount...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {

@@ -337,17 +337,44 @@ fun TransactionItemCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Party / Vendor name & Particulars
-            Text(
-                text = "Party: ${tx.partyName}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            // Party / Vendor Name Ledger Column Badge
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Party / Vendor Name",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        text = "Party / Vendor:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = if (tx.partyName.isNotBlank()) tx.partyName else "N/A",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
 
             if (tx.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = tx.description,
                     style = MaterialTheme.typography.bodySmall,

@@ -1,5 +1,6 @@
 package com.example.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AuditLog
@@ -87,7 +88,8 @@ data class AdminFilterCriteria(
 
 class ConstructionViewModel(
     private val repository: ConstructionRepository,
-    val syncManager: SupabaseSyncManager? = null
+    val syncManager: SupabaseSyncManager? = null,
+    private val context: Context? = null
 ) : ViewModel() {
 
     private val _isSyncing = MutableStateFlow(false)
@@ -101,9 +103,72 @@ class ConstructionViewModel(
 
     init {
         viewModelScope.launch {
+            // Ensure Admin user has password 20262026
             val adminUser = repository.getUserByMobile("9621803006")
-            if (adminUser != null && adminUser.password != "80808080") {
-                repository.insertUser(adminUser.copy(password = "80808080"))
+            if (adminUser != null) {
+                if (adminUser.password != "20262026") {
+                    repository.insertUser(adminUser.copy(password = "20262026"))
+                }
+            } else {
+                val defaultAdmin = User(
+                    id = 1,
+                    name = "Admin (Director)",
+                    mobile = "9621803006",
+                    password = "20262026",
+                    role = "ADMIN",
+                    assignedSiteId = null,
+                    assignedSiteName = null,
+                    designation = "Managing Director / Admin"
+                )
+                repository.insertUser(defaultAdmin)
+            }
+
+            // Remove any demo project sites and demo users if present
+            val existingSites = repository.getAllSitesList()
+            val demoSiteCodes = setOf("PRJ-A", "PRJ-B", "PRJ-C")
+            val demoSiteNames = setOf("Metro City Tower", "NH-48 Highway Bypass", "Riverfront Commercial Hub")
+            for (site in existingSites) {
+                if (site.code in demoSiteCodes || site.name in demoSiteNames) {
+                    repository.deleteSite(site.id)
+                }
+            }
+
+            val existingUsers = repository.getAllUsersList()
+            val demoMobiles = setOf("9876500002", "9876500003", "9876500004")
+            for (u in existingUsers) {
+                if (u.mobile in demoMobiles && u.role == "SITE_INCHARGE") {
+                    repository.deleteUser(u.id)
+                }
+            }
+
+            // Restore user session if previously logged in (persists across app restarts until logout)
+            if (context != null) {
+                val prefs = context.getSharedPreferences("rpvc_user_session", Context.MODE_PRIVATE)
+                val savedUserId = prefs.getLong("saved_user_id", -1L)
+                val savedMobile = prefs.getString("saved_user_mobile", null)
+
+                if (savedUserId > 0 || !savedMobile.isNullOrBlank()) {
+                    var restoredUser = if (savedUserId > 0) {
+                        repository.getUserById(savedUserId) ?: (if (!savedMobile.isNullOrBlank()) repository.getUserByMobile(savedMobile) else null)
+                    } else {
+                        repository.getUserByMobile(savedMobile!!)
+                    }
+
+                    if (restoredUser != null) {
+                        if (restoredUser.role == "SITE_INCHARGE" && restoredUser.assignedSiteId == null) {
+                            val sites = repository.getAllSitesList()
+                            val matchingSite = sites.firstOrNull { it.mobile.trim() == restoredUser.mobile.trim() }
+                            if (matchingSite != null) {
+                                restoredUser = restoredUser.copy(
+                                    assignedSiteId = matchingSite.id,
+                                    assignedSiteName = matchingSite.name
+                                )
+                                repository.insertUser(restoredUser)
+                            }
+                        }
+                        _currentUser.value = restoredUser
+                    }
+                }
             }
         }
 
@@ -452,6 +517,21 @@ class ConstructionViewModel(
         }.sortedWith(compareBy<InchargeSummaryStats> { if (it.user.role == "ADMIN") 0 else 1 }.thenBy { it.user.name.lowercase() })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private fun persistUserSession(user: User?) {
+        if (context != null) {
+            val prefs = context.getSharedPreferences("rpvc_user_session", Context.MODE_PRIVATE)
+            if (user != null) {
+                prefs.edit()
+                    .putLong("saved_user_id", user.id)
+                    .putString("saved_user_mobile", user.mobile)
+                    .putString("saved_user_role", user.role)
+                    .apply()
+            } else {
+                prefs.edit().clear().apply()
+            }
+        }
+    }
+
     // --- Authentication Actions ---
     fun login(
         mobile: String,
@@ -474,8 +554,8 @@ class ConstructionViewModel(
             val users = repository.getAllUsersList()
             val sites = repository.getAllSitesList()
 
-            // 1. Check admin credentials explicitly
-            if ((trimmedMobile == "9621803006" || trimmedMobile == "9876500001") && (trimmedPass == "80808080" || trimmedPass == "admin")) {
+            // 1. Check admin credentials explicitly (Password: 20262026 or admin)
+            if ((trimmedMobile == "9621803006" || trimmedMobile == "9876500001") && (trimmedPass == "20262026" || trimmedPass == "admin")) {
                 user = users.firstOrNull { it.role == "ADMIN" && it.mobile == trimmedMobile } ?: User(
                     id = 1,
                     name = "Admin (Director)",
@@ -537,6 +617,7 @@ class ConstructionViewModel(
                 }
             }
 
+            persistUserSession(user)
             _currentUser.value = user
             _loginError.value = null
             onRoleDecided(user.role)
@@ -544,6 +625,7 @@ class ConstructionViewModel(
     }
 
     fun selectUserProfile(user: User, onRoleDecided: (String) -> Unit) {
+        persistUserSession(user)
         _currentUser.value = user
         _loginError.value = null
         onRoleDecided(user.role)
@@ -563,6 +645,7 @@ class ConstructionViewModel(
     }
 
     fun logout() {
+        persistUserSession(null)
         _currentUser.value = null
         _loginError.value = null
         _inchargeSearchQuery.value = ""

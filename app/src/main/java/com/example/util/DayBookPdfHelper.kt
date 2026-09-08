@@ -118,9 +118,9 @@ object DayBookPdfHelper {
         }
 
         // Table Column Specifications (Width total: 595 - 64 = 531)
-        // Columns: Date (52), Type (42), Particular/Party (105), Category (80), Site (70), Mode (42), Debit (65), Credit (65)
+        // Columns: Date (52), Type (42), Party / Vendor Name (105), Category (80), Site (70), Mode (42), Debit (65), Credit (65)
         val colWidths = floatArrayOf(52f, 44f, 105f, 85f, 75f, 40f, 65f, 65f)
-        val colTitles = arrayOf("Date", "Type", "Particular / Party", "Category", "Site", "Mode", "Debit (₹)", "Credit (₹)")
+        val colTitles = arrayOf("Date", "Type", "Party / Vendor Name", "Category", "Site", "Mode", "Debit (₹)", "Credit (₹)")
 
         val contentWidth = pageWidth - (margin * 2)
 

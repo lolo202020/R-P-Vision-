@@ -1572,7 +1572,7 @@ private fun AdminMasterDayBookView(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
-                placeholder = { Text("Search by site, vendor, item, amount, supervisor...") },
+                placeholder = { Text("Search by Party / Vendor Name, site, item, amount...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {

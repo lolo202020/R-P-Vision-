@@ -158,7 +158,7 @@ object DayBookExcelHelper {
         sheet.addCell(Label(0, 1, periodText, subTitleFormat))
 
         val headers = arrayOf(
-            "Date", "Entry Type", "Particular", "Category", "Sub Category",
+            "Date", "Entry Type", "Party / Vendor Name", "Category", "Sub Category",
             "Site", "Description", "Payment Mode", "Debit (₹)", "Credit (₹)", "Balance (₹)"
         )
 
@@ -310,7 +310,7 @@ object DayBookExcelHelper {
         sheet.addCell(Label(0, 1, "Fill in your records following this column layout and import directly into Day Book", subTitleFormat))
 
         val headers = arrayOf(
-            "Date", "Entry Type", "Particular", "Category", "Sub Category",
+            "Date", "Entry Type", "Party / Vendor Name", "Category", "Sub Category",
             "Site", "Description", "Payment Mode", "Debit (₹)", "Credit (₹)", "Balance (₹)"
         )
 
@@ -504,7 +504,7 @@ object DayBookExcelHelper {
             when {
                 n.contains("date") && colDate == -1 -> colDate = idx
                 (n == "type" || n.contains("entry type")) && colType == -1 -> colType = idx
-                (n.contains("particular") || n.contains("party")) && colParticular == -1 -> colParticular = idx
+                (n.contains("particular") || n.contains("party") || n.contains("vendor")) && colParticular == -1 -> colParticular = idx
                 (n == "sub category" || n.contains("sub-category") || n.contains("subcategory")) && colSubCategory == -1 -> colSubCategory = idx
                 n.contains("category") && colCategory == -1 -> colCategory = idx
                 n.contains("site") && colSite == -1 -> colSite = idx

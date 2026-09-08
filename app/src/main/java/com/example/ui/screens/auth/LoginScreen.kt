@@ -341,7 +341,7 @@ fun LoginScreen(
                         }
                     },
                     label = { Text("Mobile Number (User ID)") },
-                    placeholder = { Text("e.g. 9876500002") },
+                    placeholder = { Text("Enter 10-digit mobile") },
                     leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
