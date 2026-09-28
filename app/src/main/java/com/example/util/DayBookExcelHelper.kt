@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Xml
 import androidx.core.content.FileProvider
+import com.example.data.model.CategoryConstants
 import com.example.data.model.TransactionEntry
 import jxl.Cell
 import jxl.Sheet
@@ -34,6 +35,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 object DayBookExcelHelper {
 
@@ -45,333 +47,7 @@ object DayBookExcelHelper {
         val totalCredit: Double
     )
 
-    /**
-     * Generates a REAL binary Microsoft Excel (.xls) BIFF8 file for filtered transactions.
-     */
-    fun exportDayBookToXls(
-        context: Context,
-        transactions: List<TransactionEntry>,
-        fromDate: String? = null,
-        toDate: String? = null,
-        siteName: String? = null
-    ): File {
-        val exportDir = File(context.cacheDir, "excel_exports").apply { mkdirs() }
-        val dateFromClean = fromDate?.replace("/", "-")?.replace(" ", "")?.ifBlank { null }
-        val dateToClean = toDate?.replace("/", "-")?.replace(" ", "")?.ifBlank { null }
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-
-        val fileName = when {
-            dateFromClean != null && dateToClean != null -> "DayBook_${dateFromClean}_to_${dateToClean}.xls"
-            dateFromClean != null -> "DayBook_${dateFromClean}.xls"
-            else -> "DayBook_${todayStr}.xls"
-        }
-
-        val file = File(exportDir, fileName)
-        if (file.exists()) file.delete()
-
-        val settings = WorkbookSettings().apply {
-            encoding = "UTF-8"
-        }
-        val workbook: WritableWorkbook = Workbook.createWorkbook(file, settings)
-        val sheet: WritableSheet = workbook.createSheet("DayBook", 0)
-
-        // Fonts
-        val titleFont = WritableFont(WritableFont.ARIAL, 13, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.DARK_BLUE)
-        val titleFormat = WritableCellFormat(titleFont).apply {
-            alignment = Alignment.CENTRE
-            verticalAlignment = VerticalAlignment.CENTRE
-        }
-
-        val subTitleFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.NO_BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.GRAY_80)
-        val subTitleFormat = WritableCellFormat(subTitleFont).apply {
-            alignment = Alignment.CENTRE
-        }
-
-        val headerFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.WHITE)
-        val headerFormat = WritableCellFormat(headerFont).apply {
-            setBackground(Colour.OCEAN_BLUE)
-            alignment = Alignment.CENTRE
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_50)
-        }
-
-        val dataFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.NO_BOLD)
-        val dataFormatLeft = WritableCellFormat(dataFont).apply {
-            alignment = Alignment.LEFT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-        val dataFormatCenter = WritableCellFormat(dataFont).apply {
-            alignment = Alignment.CENTRE
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-        val numFormat = WritableCellFormat(dataFont, NumberFormats.FORMAT3).apply {
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-
-        val debitFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.DARK_RED)
-        val debitFormat = WritableCellFormat(debitFont, NumberFormats.FORMAT3).apply {
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-
-        val creditFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.DARK_GREEN)
-        val creditFormat = WritableCellFormat(creditFont, NumberFormats.FORMAT3).apply {
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-
-        val totalFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.BLACK)
-        val totalLabelFormat = WritableCellFormat(totalFont).apply {
-            setBackground(Colour.GRAY_25)
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.MEDIUM, Colour.BLACK)
-        }
-        val totalNumFormat = WritableCellFormat(totalFont, NumberFormats.FORMAT3).apply {
-            setBackground(Colour.GRAY_25)
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.MEDIUM, Colour.BLACK)
-        }
-
-        // Header Title Block
-        sheet.mergeCells(0, 0, 10, 0)
-        sheet.addCell(Label(0, 0, "DAY BOOK REGISTER REPORT", titleFormat))
-
-        sheet.mergeCells(0, 1, 10, 1)
-        val periodText = buildString {
-            if (!dateFromClean.isNullOrBlank() || !dateToClean.isNullOrBlank()) {
-                append("Period: ${dateFromClean ?: "Start"} to ${dateToClean ?: "End"}")
-            } else {
-                append("All Records (Up to $todayStr)")
-            }
-            if (!siteName.isNullOrBlank() && siteName != "ALL") {
-                append(" | Site: $siteName")
-            }
-        }
-        sheet.addCell(Label(0, 1, periodText, subTitleFormat))
-
-        val headers = arrayOf(
-            "Date", "Entry Type", "Party / Vendor Name", "Category", "Sub Category",
-            "Site", "Description", "Payment Mode", "Debit (₹)", "Credit (₹)", "Balance (₹)"
-        )
-
-        val headerRowIndex = 3
-        for (i in headers.indices) {
-            sheet.addCell(Label(i, headerRowIndex, headers[i], headerFormat))
-        }
-
-        var currentRow = headerRowIndex + 1
-        var runningBalance = 0.0
-        var totalDebit = 0.0
-        var totalCredit = 0.0
-
-        val sortedList = transactions.sortedWith(compareBy({ it.dateMillis }, { it.id }))
-
-        for (tx in sortedList) {
-            val isIncome = tx.type.equals("INCOME", ignoreCase = true)
-            val debit = if (!isIncome) tx.amount else 0.0
-            val credit = if (isIncome) tx.amount else 0.0
-
-            totalDebit += debit
-            totalCredit += credit
-            runningBalance += (credit - debit)
-
-            sheet.addCell(Label(0, currentRow, tx.dateFormatted, dataFormatCenter))
-            sheet.addCell(Label(1, currentRow, if (isIncome) "INCOME" else "EXPENSE", if (isIncome) creditFormat else debitFormat))
-            sheet.addCell(Label(2, currentRow, tx.partyName.ifBlank { "-" }, dataFormatLeft))
-            sheet.addCell(Label(3, currentRow, tx.category.ifBlank { "General" }, dataFormatLeft))
-            sheet.addCell(Label(4, currentRow, tx.subCategory.ifBlank { "General" }, dataFormatLeft))
-            sheet.addCell(Label(5, currentRow, tx.siteName.ifBlank { "Site" }, dataFormatLeft))
-            sheet.addCell(Label(6, currentRow, tx.description.ifBlank { "-" }, dataFormatLeft))
-            sheet.addCell(Label(7, currentRow, tx.paymentMode.ifBlank { "Cash" }, dataFormatCenter))
-            sheet.addCell(Number(8, currentRow, debit, if (debit > 0) debitFormat else numFormat))
-            sheet.addCell(Number(9, currentRow, credit, if (credit > 0) creditFormat else numFormat))
-            sheet.addCell(Number(10, currentRow, runningBalance, numFormat))
-
-            currentRow++
-        }
-
-        // Summary Total Row
-        sheet.mergeCells(0, currentRow, 7, currentRow)
-        sheet.addCell(Label(0, currentRow, "TOTAL / NET CLOSING BALANCE", totalLabelFormat))
-        sheet.addCell(Number(8, currentRow, totalDebit, totalNumFormat))
-        sheet.addCell(Number(9, currentRow, totalCredit, totalNumFormat))
-        sheet.addCell(Number(10, currentRow, runningBalance, totalNumFormat))
-
-        // Column widths (approx character count)
-        sheet.setColumnView(0, 13) // Date
-        sheet.setColumnView(1, 14) // Entry Type
-        sheet.setColumnView(2, 22) // Particular
-        sheet.setColumnView(3, 18) // Category
-        sheet.setColumnView(4, 18) // Sub Category
-        sheet.setColumnView(5, 20) // Site
-        sheet.setColumnView(6, 28) // Description
-        sheet.setColumnView(7, 15) // Payment Mode
-        sheet.setColumnView(8, 16) // Debit
-        sheet.setColumnView(9, 16) // Credit
-        sheet.setColumnView(10, 18) // Balance
-
-        workbook.write()
-        workbook.close()
-
-        return file
-    }
-
-    /**
-     * Generates an official REAL .xls sample template with 4 realistic construction transactions.
-     */
-    fun generateSampleXlsFile(context: Context): File {
-        val exportDir = File(context.cacheDir, "excel_exports").apply { mkdirs() }
-        val file = File(exportDir, "DayBook_Sample_Template.xls")
-        if (file.exists()) file.delete()
-
-        val settings = WorkbookSettings().apply {
-            encoding = "UTF-8"
-        }
-        val workbook: WritableWorkbook = Workbook.createWorkbook(file, settings)
-        val sheet: WritableSheet = workbook.createSheet("DayBook_Sample", 0)
-
-        // Fonts & Formats
-        val titleFont = WritableFont(WritableFont.ARIAL, 13, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.DARK_BLUE)
-        val titleFormat = WritableCellFormat(titleFont).apply {
-            alignment = Alignment.CENTRE
-            verticalAlignment = VerticalAlignment.CENTRE
-        }
-
-        val subTitleFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.NO_BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.GRAY_80)
-        val subTitleFormat = WritableCellFormat(subTitleFont).apply {
-            alignment = Alignment.CENTRE
-        }
-
-        val headerFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.WHITE)
-        val headerFormat = WritableCellFormat(headerFont).apply {
-            setBackground(Colour.OCEAN_BLUE)
-            alignment = Alignment.CENTRE
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_50)
-        }
-
-        val dataFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.NO_BOLD)
-        val dataFormatLeft = WritableCellFormat(dataFont).apply {
-            alignment = Alignment.LEFT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-        val dataFormatCenter = WritableCellFormat(dataFont).apply {
-            alignment = Alignment.CENTRE
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-        val numFormat = WritableCellFormat(dataFont, NumberFormats.FORMAT3).apply {
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-
-        val debitFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.DARK_RED)
-        val debitFormat = WritableCellFormat(debitFont, NumberFormats.FORMAT3).apply {
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-
-        val creditFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.DARK_GREEN)
-        val creditFormat = WritableCellFormat(creditFont, NumberFormats.FORMAT3).apply {
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.THIN, Colour.GRAY_25)
-        }
-
-        val totalFont = WritableFont(WritableFont.ARIAL, 10, WritableFont.BOLD, false, UnderlineStyle.NO_UNDERLINE, Colour.BLACK)
-        val totalLabelFormat = WritableCellFormat(totalFont).apply {
-            setBackground(Colour.GRAY_25)
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.MEDIUM, Colour.BLACK)
-        }
-        val totalNumFormat = WritableCellFormat(totalFont, NumberFormats.FORMAT3).apply {
-            setBackground(Colour.GRAY_25)
-            alignment = Alignment.RIGHT
-            verticalAlignment = VerticalAlignment.CENTRE
-            setBorder(Border.ALL, BorderLineStyle.MEDIUM, Colour.BLACK)
-        }
-
-        sheet.mergeCells(0, 0, 10, 0)
-        sheet.addCell(Label(0, 0, "DAY BOOK OFFICIAL SAMPLE TEMPLATE", titleFormat))
-
-        sheet.mergeCells(0, 1, 10, 1)
-        sheet.addCell(Label(0, 1, "Fill in your records following this column layout and import directly into Day Book", subTitleFormat))
-
-        val headers = arrayOf(
-            "Date", "Entry Type", "Party / Vendor Name", "Category", "Sub Category",
-            "Site", "Description", "Payment Mode", "Debit (₹)", "Credit (₹)", "Balance (₹)"
-        )
-
-        for (i in headers.indices) {
-            sheet.addCell(Label(i, 3, headers[i], headerFormat))
-        }
-
-        val sampleRows = listOf(
-            SampleRow("2026-08-01", "INCOME", "Apex Realty Ltd", "Client Advance", "Advance Payment", "Metro City Tower", "Initial mobilisation advance", "Bank Transfer", 0.0, 500000.0, 500000.0),
-            SampleRow("2026-08-02", "EXPENSE", "UltraTech Cement", "Material", "Cement & Steel", "Metro City Tower", "100 bags 53 grade cement", "UPI", 42000.0, 0.0, 458000.0),
-            SampleRow("2026-08-03", "EXPENSE", "Shramik Labor Union", "Labor", "Daily Wages", "Metro City Tower", "Daily wages for 10 masons & 15 helpers", "Cash", 18500.0, 0.0, 439500.0),
-            SampleRow("2026-08-04", "EXPENSE", "Metro Fuel Station", "Equipment / Machine", "Fuel / Diesel", "Metro City Tower", "Diesel 75L for JCB excavator", "UPI", 6750.0, 0.0, 432750.0)
-        )
-
-        var r = 4
-        var totDeb = 0.0
-        var totCred = 0.0
-
-        for (row in sampleRows) {
-            totDeb += row.debit
-            totCred += row.credit
-
-            sheet.addCell(Label(0, r, row.date, dataFormatCenter))
-            sheet.addCell(Label(1, r, row.type, if (row.type == "INCOME") creditFormat else debitFormat))
-            sheet.addCell(Label(2, r, row.particular, dataFormatLeft))
-            sheet.addCell(Label(3, r, row.category, dataFormatLeft))
-            sheet.addCell(Label(4, r, row.subCategory, dataFormatLeft))
-            sheet.addCell(Label(5, r, row.site, dataFormatLeft))
-            sheet.addCell(Label(6, r, row.desc, dataFormatLeft))
-            sheet.addCell(Label(7, r, row.mode, dataFormatCenter))
-            sheet.addCell(Number(8, r, row.debit, if (row.debit > 0) debitFormat else numFormat))
-            sheet.addCell(Number(9, r, row.credit, if (row.credit > 0) creditFormat else numFormat))
-            sheet.addCell(Number(10, r, row.balance, numFormat))
-            r++
-        }
-
-        sheet.mergeCells(0, r, 7, r)
-        sheet.addCell(Label(0, r, "TOTAL / NET BALANCE", totalLabelFormat))
-        sheet.addCell(Number(8, r, totDeb, totalNumFormat))
-        sheet.addCell(Number(9, r, totCred, totalNumFormat))
-        sheet.addCell(Number(10, r, totCred - totDeb, totalNumFormat))
-
-        sheet.setColumnView(0, 13)
-        sheet.setColumnView(1, 14)
-        sheet.setColumnView(2, 22)
-        sheet.setColumnView(3, 18)
-        sheet.setColumnView(4, 18)
-        sheet.setColumnView(5, 20)
-        sheet.setColumnView(6, 28)
-        sheet.setColumnView(7, 15)
-        sheet.setColumnView(8, 16)
-        sheet.setColumnView(9, 16)
-        sheet.setColumnView(10, 18)
-
-        workbook.write()
-        workbook.close()
-
-        return file
-    }
-
-    private data class SampleRow(
+    data class SampleRow(
         val date: String,
         val type: String,
         val particular: String,
@@ -384,6 +60,452 @@ object DayBookExcelHelper {
         val credit: Double,
         val balance: Double
     )
+
+    private val DEFAULT_ENTRY_TYPES = listOf("EXPENSE", "INCOME")
+    private val DEFAULT_PAYMENT_MODES = listOf("Cash", "Bank", "UPI", "Cheque", "Online", "Other")
+
+    fun getAllCategories(transactions: List<TransactionEntry> = emptyList()): List<String> {
+        val set = linkedSetOf<String>()
+        CategoryConstants.EXPENSE_CATEGORIES.forEach { set.add(it.mainCategory.trim()) }
+        CategoryConstants.INCOME_CATEGORIES.forEach { set.add(it.mainCategory.trim()) }
+        transactions.map { it.category.trim() }.filter { it.isNotBlank() }.forEach { set.add(it) }
+        return set.filter { it.isNotBlank() }.toList()
+    }
+
+    fun getAllSubCategories(transactions: List<TransactionEntry> = emptyList()): List<String> {
+        val set = linkedSetOf<String>()
+        CategoryConstants.EXPENSE_CATEGORIES.forEach { cat ->
+            cat.subCategories.forEach { set.add(it.trim()) }
+        }
+        CategoryConstants.INCOME_CATEGORIES.forEach { cat ->
+            cat.subCategories.forEach { set.add(it.trim()) }
+        }
+        set.add("Fuel / Diesel")
+        set.add("Machine Repairing")
+        set.add("Machine Rent")
+        set.add("Daily Wages")
+        set.add("Monthly Salary")
+        transactions.map { it.subCategory.trim() }
+            .filter { it.isNotBlank() && it != "General" && it != "Income Entry" }
+            .forEach { set.add(it) }
+        return set.filter { it.isNotBlank() }.toList()
+    }
+
+    /**
+     * Generates a modern Microsoft Excel (.xlsx) file with INTERACTIVE DROPDOWNS
+     * for Category, Sub Category, Entry Type, and Payment Mode via Data Validation.
+     */
+    fun exportDayBookToXlsx(
+        context: Context,
+        transactions: List<TransactionEntry>,
+        fromDate: String? = null,
+        toDate: String? = null,
+        siteName: String? = null
+    ): File {
+        val exportDir = File(context.cacheDir, "excel_exports").apply { mkdirs() }
+        val dateFromClean = fromDate?.replace("/", "-")?.replace(" ", "")?.ifBlank { null }
+        val dateToClean = toDate?.replace("/", "-")?.replace(" ", "")?.ifBlank { null }
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+        val fileName = when {
+            dateFromClean != null && dateToClean != null -> "DayBook_${dateFromClean}_to_${dateToClean}.xlsx"
+            dateFromClean != null -> "DayBook_${dateFromClean}.xlsx"
+            else -> "DayBook_${todayStr}.xlsx"
+        }
+
+        val file = File(exportDir, fileName)
+        if (file.exists()) file.delete()
+
+        val periodText = buildString {
+            if (!dateFromClean.isNullOrBlank() || !dateToClean.isNullOrBlank()) {
+                append("Period: ${dateFromClean ?: "Start"} to ${dateToClean ?: "End"}")
+            } else {
+                append("All Records (Up to $todayStr)")
+            }
+            if (!siteName.isNullOrBlank() && siteName != "ALL") {
+                append(" | Site: $siteName")
+            }
+        }
+
+        val sortedList = transactions.sortedWith(compareBy({ it.dateMillis }, { it.id }))
+        val categories = getAllCategories(transactions)
+        val subCategories = getAllSubCategories(transactions)
+
+        val rowList = mutableListOf<SampleRow>()
+        var runningBal = 0.0
+        var totDeb = 0.0
+        var totCred = 0.0
+
+        for (tx in sortedList) {
+            val isIncome = tx.type.equals("INCOME", ignoreCase = true)
+            val debit = if (!isIncome) tx.amount else 0.0
+            val credit = if (isIncome) tx.amount else 0.0
+            totDeb += debit
+            totCred += credit
+            runningBal += (credit - debit)
+
+            rowList.add(
+                SampleRow(
+                    date = tx.dateFormatted,
+                    type = if (isIncome) "INCOME" else "EXPENSE",
+                    particular = tx.partyName.ifBlank { "-" },
+                    category = tx.category.ifBlank { "General" },
+                    subCategory = tx.subCategory.ifBlank { "General" },
+                    site = tx.siteName.ifBlank { "Site" },
+                    desc = tx.description.ifBlank { "-" },
+                    mode = tx.paymentMode.ifBlank { "Cash" },
+                    debit = debit,
+                    credit = credit,
+                    balance = runningBal
+                )
+            )
+        }
+
+        writeXlsxPackage(
+            file = file,
+            title = "DAY BOOK REGISTER REPORT",
+            subtitle = periodText,
+            rows = rowList,
+            totalDebit = totDeb,
+            totalCredit = totCred,
+            closingBalance = runningBal,
+            categories = categories,
+            subCategories = subCategories
+        )
+
+        return file
+    }
+
+    /**
+     * Backward-compatible alias that outputs the XLSX file with Category/Subcategory dropdowns.
+     */
+    fun exportDayBookToXls(
+        context: Context,
+        transactions: List<TransactionEntry>,
+        fromDate: String? = null,
+        toDate: String? = null,
+        siteName: String? = null
+    ): File {
+        return exportDayBookToXlsx(context, transactions, fromDate, toDate, siteName)
+    }
+
+    /**
+     * Generates an official REAL Excel sample template (.xlsx) with interactive dropdowns
+     * for Category, Sub Category, Entry Type, and Payment Mode.
+     */
+    fun generateSampleXlsxFile(context: Context): File {
+        val exportDir = File(context.cacheDir, "excel_exports").apply { mkdirs() }
+        val file = File(exportDir, "DayBook_Sample_Template.xlsx")
+        if (file.exists()) file.delete()
+
+        val sampleRows = listOf(
+            SampleRow("2026-08-01", "INCOME", "Apex Realty Ltd", "Head Office", "HO se received amount", "Metro City Tower", "Initial mobilisation advance", "Bank", 0.0, 500000.0, 500000.0),
+            SampleRow("2026-08-02", "EXPENSE", "UltraTech Cement", "Material Purchase", "Cement", "Metro City Tower", "100 bags 53 grade cement", "UPI", 42000.0, 0.0, 458000.0),
+            SampleRow("2026-08-03", "EXPENSE", "Shramik Labor Union", "Site Labour", "Daily Wages", "Metro City Tower", "Daily wages for 10 masons & 15 helpers", "Cash", 18500.0, 0.0, 439500.0),
+            SampleRow("2026-08-04", "EXPENSE", "Metro Fuel Station", "Machinery & Equipment", "Fuel / Diesel", "Metro City Tower", "Diesel 75L for JCB excavator", "UPI", 6750.0, 0.0, 432750.0)
+        )
+
+        var totDeb = 0.0
+        var totCred = 0.0
+        sampleRows.forEach {
+            totDeb += it.debit
+            totCred += it.credit
+        }
+
+        val categories = getAllCategories()
+        val subCategories = getAllSubCategories()
+
+        writeXlsxPackage(
+            file = file,
+            title = "DAY BOOK OFFICIAL SAMPLE TEMPLATE",
+            subtitle = "Fill your records below using the Category & Sub-Category Dropdown menus, then import directly into Day Book",
+            rows = sampleRows,
+            totalDebit = totDeb,
+            totalCredit = totCred,
+            closingBalance = totCred - totDeb,
+            categories = categories,
+            subCategories = subCategories
+        )
+
+        return file
+    }
+
+    /**
+     * Backward-compatible alias for sample template.
+     */
+    fun generateSampleXlsFile(context: Context): File {
+        return generateSampleXlsxFile(context)
+    }
+
+    private fun escapeXml(str: String): String {
+        return str.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+    }
+
+    private fun writeXlsxPackage(
+        file: File,
+        title: String,
+        subtitle: String,
+        rows: List<SampleRow>,
+        totalDebit: Double,
+        totalCredit: Double,
+        closingBalance: Double,
+        categories: List<String>,
+        subCategories: List<String>
+    ) {
+        val entryTypes = DEFAULT_ENTRY_TYPES
+        val paymentModes = DEFAULT_PAYMENT_MODES
+
+        ZipOutputStream(FileOutputStream(file)).use { zos ->
+            // 1. [Content_Types].xml
+            zos.putNextEntry(ZipEntry("[Content_Types].xml"))
+            zos.write("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>""".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 2. _rels/.rels
+            zos.putNextEntry(ZipEntry("_rels/.rels"))
+            zos.write("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>""".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 3. xl/_rels/workbook.xml.rels
+            zos.putNextEntry(ZipEntry("xl/_rels/workbook.xml.rels"))
+            zos.write("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>""".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 4. xl/workbook.xml
+            zos.putNextEntry(ZipEntry("xl/workbook.xml"))
+            zos.write("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="DayBook" sheetId="1" r:id="rId1"/>
+    <sheet name="Categories_Master" sheetId="2" r:id="rId2"/>
+  </sheets>
+</workbook>""".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 5. xl/styles.xml
+            zos.putNextEntry(ZipEntry("xl/styles.xml"))
+            zos.write("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="#,##0.00"/>
+  </numFmts>
+  <fonts count="6">
+    <font><name val="Calibri"/><sz val="10"/></font>
+    <font><b/><name val="Calibri"/><sz val="13"/><color rgb="FF0D47A1"/></font>
+    <font><name val="Calibri"/><sz val="9"/><color rgb="FF555555"/></font>
+    <font><b/><name val="Calibri"/><sz val="10"/><color rgb="FFFFFFFF"/></font>
+    <font><b/><name val="Calibri"/><sz val="10"/><color rgb="FFB71C1C"/></font>
+    <font><b/><name val="Calibri"/><sz val="10"/><color rgb="FF1B5E20"/></font>
+  </fonts>
+  <fills count="5">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1565C0"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE0E0E0"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF5F5F5"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="3">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFCCCCCC"/></left>
+      <right style="thin"><color rgb="FFCCCCCC"/></right>
+      <top style="thin"><color rgb="FFCCCCCC"/></top>
+      <bottom style="thin"><color rgb="FFCCCCCC"/></bottom>
+      <diagonal/>
+    </border>
+    <border>
+      <left style="thin"><color rgb="FF000000"/></left>
+      <right style="thin"><color rgb="FF000000"/></right>
+      <top style="medium"><color rgb="FF000000"/></top>
+      <bottom style="double"><color rgb="FF000000"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="10">
+    <!-- 0: Data Left -->
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <!-- 1: Data Center -->
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <!-- 2: Title Center -->
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <!-- 3: Subtitle Center -->
+    <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <!-- 4: Header (Blue, White bold) -->
+    <xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <!-- 5: Number Right (#,##0.00) -->
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <!-- 6: Debit Amount (Bold Red) -->
+    <xf numFmtId="164" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <!-- 7: Credit Amount (Bold Green) -->
+    <xf numFmtId="164" fontId="5" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <!-- 8: Total Label (Gray, Bold) -->
+    <xf numFmtId="0" fontId="3" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <!-- 9: Total Number (Gray, Bold #,##0.00) -->
+    <xf numFmtId="164" fontId="1" fillId="3" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+  </cellXfs>
+</styleSheet>""".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 6. xl/worksheets/sheet2.xml (Categories_Master)
+            zos.putNextEntry(ZipEntry("xl/worksheets/sheet2.xml"))
+            val s2Builder = StringBuilder()
+            s2Builder.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <cols>
+    <col min="1" max="1" width="16" customWidth="1"/>
+    <col min="2" max="2" width="28" customWidth="1"/>
+    <col min="3" max="3" width="30" customWidth="1"/>
+    <col min="4" max="4" width="18" customWidth="1"/>
+  </cols>
+  <sheetData>
+    <row r="1" ht="24" customHeight="1">
+      <c r="A1" s="4" t="inlineStr"><is><t>Entry Type</t></is></c>
+      <c r="B1" s="4" t="inlineStr"><is><t>Category</t></is></c>
+      <c r="C1" s="4" t="inlineStr"><is><t>Sub Category</t></is></c>
+      <c r="D1" s="4" t="inlineStr"><is><t>Payment Mode</t></is></c>
+    </row>
+""")
+
+            val maxMasterRows = maxOf(entryTypes.size, categories.size, subCategories.size, paymentModes.size)
+            for (idx in 0 until maxMasterRows) {
+                val rNum = idx + 2
+                s2Builder.append("    <row r=\"$rNum\" ht=\"19\" customHeight=\"1\">\n")
+                if (idx < entryTypes.size) {
+                    s2Builder.append("      <c r=\"A$rNum\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(entryTypes[idx])}</t></is></c>\n")
+                }
+                if (idx < categories.size) {
+                    s2Builder.append("      <c r=\"B$rNum\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(categories[idx])}</t></is></c>\n")
+                }
+                if (idx < subCategories.size) {
+                    s2Builder.append("      <c r=\"C$rNum\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(subCategories[idx])}</t></is></c>\n")
+                }
+                if (idx < paymentModes.size) {
+                    s2Builder.append("      <c r=\"D$rNum\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(paymentModes[idx])}</t></is></c>\n")
+                }
+                s2Builder.append("    </row>\n")
+            }
+            s2Builder.append("""  </sheetData>
+</worksheet>""")
+            zos.write(s2Builder.toString().toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+
+            // 7. xl/worksheets/sheet1.xml (DayBook)
+            zos.putNextEntry(ZipEntry("xl/worksheets/sheet1.xml"))
+            val s1Builder = StringBuilder()
+            s1Builder.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <cols>
+    <col min="1" max="1" width="14" customWidth="1"/>
+    <col min="2" max="2" width="15" customWidth="1"/>
+    <col min="3" max="3" width="24" customWidth="1"/>
+    <col min="4" max="4" width="22" customWidth="1"/>
+    <col min="5" max="5" width="22" customWidth="1"/>
+    <col min="6" max="6" width="20" customWidth="1"/>
+    <col min="7" max="7" width="28" customWidth="1"/>
+    <col min="8" max="8" width="16" customWidth="1"/>
+    <col min="9" max="9" width="17" customWidth="1"/>
+    <col min="10" max="10" width="17" customWidth="1"/>
+    <col min="11" max="11" width="18" customWidth="1"/>
+  </cols>
+  <sheetData>
+    <row r="1" ht="26" customHeight="1">
+      <c r="A1" s="2" t="inlineStr"><is><t>${escapeXml(title)}</t></is></c>
+    </row>
+    <row r="2" ht="20" customHeight="1">
+      <c r="A2" s="3" t="inlineStr"><is><t>${escapeXml(subtitle)}</t></is></c>
+    </row>
+    <row r="3" ht="10" customHeight="1"/>
+    <row r="4" ht="24" customHeight="1">
+      <c r="A4" s="4" t="inlineStr"><is><t>Date</t></is></c>
+      <c r="B4" s="4" t="inlineStr"><is><t>Entry Type</t></is></c>
+      <c r="C4" s="4" t="inlineStr"><is><t>Party / Vendor Name</t></is></c>
+      <c r="D4" s="4" t="inlineStr"><is><t>Category</t></is></c>
+      <c r="E4" s="4" t="inlineStr"><is><t>Sub Category</t></is></c>
+      <c r="F4" s="4" t="inlineStr"><is><t>Site</t></is></c>
+      <c r="G4" s="4" t="inlineStr"><is><t>Description</t></is></c>
+      <c r="H4" s="4" t="inlineStr"><is><t>Payment Mode</t></is></c>
+      <c r="I4" s="4" t="inlineStr"><is><t>Debit (₹)</t></is></c>
+      <c r="J4" s="4" t="inlineStr"><is><t>Credit (₹)</t></is></c>
+      <c r="K4" s="4" t="inlineStr"><is><t>Balance (₹)</t></is></c>
+    </row>
+""")
+
+            var curRow = 5
+            for (row in rows) {
+                s1Builder.append("    <row r=\"$curRow\" ht=\"20\" customHeight=\"1\">\n")
+                s1Builder.append("      <c r=\"A$curRow\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(row.date)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"B$curRow\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(row.type)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"C$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.particular)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"D$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.category)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"E$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.subCategory)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"F$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.site)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"G$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.desc)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"H$curRow\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(row.mode)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"I$curRow\" s=\"6\"><v>${String.format(Locale.US, "%.2f", row.debit)}</v></c>\n")
+                s1Builder.append("      <c r=\"J$curRow\" s=\"7\"><v>${String.format(Locale.US, "%.2f", row.credit)}</v></c>\n")
+                s1Builder.append("      <c r=\"K$curRow\" s=\"5\"><v>${String.format(Locale.US, "%.2f", row.balance)}</v></c>\n")
+                s1Builder.append("    </row>\n")
+                curRow++
+            }
+
+            // Summary row
+            val totalRowNum = curRow
+            s1Builder.append("    <row r=\"$totalRowNum\" ht=\"22\" customHeight=\"1\">\n")
+            s1Builder.append("      <c r=\"A$totalRowNum\" s=\"8\" t=\"inlineStr\"><is><t>TOTAL / NET CLOSING BALANCE</t></is></c>\n")
+            s1Builder.append("      <c r=\"I$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", totalDebit)}</v></c>\n")
+            s1Builder.append("      <c r=\"J$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", totalCredit)}</v></c>\n")
+            s1Builder.append("      <c r=\"K$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", closingBalance)}</v></c>\n")
+            s1Builder.append("    </row>\n")
+
+            s1Builder.append("""  </sheetData>
+  <mergeCells count="3">
+    <mergeCell ref="A1:K1"/>
+    <mergeCell ref="A2:K2"/>
+    <mergeCell ref="A$totalRowNum:H$totalRowNum"/>
+  </mergeCells>
+  <dataValidations count="4">
+    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="B5:B1000">
+      <formula1>&apos;Categories_Master&apos;!${'$'}A${'$'}2:${'$'}A${'$'}${entryTypes.size + 1}</formula1>
+    </dataValidation>
+    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="D5:D1000">
+      <formula1>&apos;Categories_Master&apos;!${'$'}B${'$'}2:${'$'}B${'$'}${categories.size + 1}</formula1>
+    </dataValidation>
+    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="E5:E1000">
+      <formula1>&apos;Categories_Master&apos;!${'$'}C${'$'}2:${'$'}C${'$'}${subCategories.size + 1}</formula1>
+    </dataValidation>
+    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="H5:H1000">
+      <formula1>&apos;Categories_Master&apos;!${'$'}D${'$'}2:${'$'}D${'$'}${paymentModes.size + 1}</formula1>
+    </dataValidation>
+  </dataValidations>
+</worksheet>""")
+
+            zos.write(s1Builder.toString().toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+    }
 
     /**
      * Parses an uploaded Excel (.xls or .xlsx) or tabular file from Uri.
@@ -697,6 +819,20 @@ object DayBookExcelHelper {
         return list
     }
 
+    private fun parseColumnIndex(cellRef: String): Int {
+        var col = 0
+        for (char in cellRef) {
+            if (char in 'A'..'Z') {
+                col = col * 26 + (char - 'A' + 1)
+            } else if (char in 'a'..'z') {
+                col = col * 26 + (char - 'a' + 1)
+            } else {
+                break
+            }
+        }
+        return if (col > 0) col - 1 else 0
+    }
+
     /**
      * Parses OOXML (.xlsx) zipped XML format directly.
      */
@@ -708,9 +844,11 @@ object DayBookExcelHelper {
         ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
             var entry: ZipEntry? = zis.nextEntry
             while (entry != null) {
-                if (entry.name.equals("xl/sharedStrings.xml", ignoreCase = true)) {
-                    sharedStrings.addAll(parseSharedStringsXml(zis))
-                } else if (entry.name.startsWith("xl/worksheets/sheet1.xml", ignoreCase = true) || (entry.name.startsWith("xl/worksheets/sheet", ignoreCase = true) && sheetBytes == null)) {
+                val entryName = entry.name.lowercase()
+                if (entryName == "xl/sharedstrings.xml") {
+                    val ssBytes = zis.readBytes()
+                    sharedStrings.addAll(parseSharedStringsXml(ByteArrayInputStream(ssBytes)))
+                } else if (entryName == "xl/worksheets/sheet1.xml" || (entryName.startsWith("xl/worksheets/sheet") && sheetBytes == null)) {
                     sheetBytes = zis.readBytes()
                 }
                 zis.closeEntry()
@@ -766,50 +904,66 @@ object DayBookExcelHelper {
         parser.setInput(ByteArrayInputStream(bytes), "UTF-8")
         var eventType = parser.eventType
 
-        var currentRow = mutableListOf<String>()
+        var currentRowMap = mutableMapOf<Int, String>()
+        var currentColIdx = 0
         var currentCellType = ""
         var currentCellValue = StringBuilder()
         var insideV = false
+        var insideT = false
 
         while (eventType != XmlPullParser.END_DOCUMENT) {
             when (eventType) {
                 XmlPullParser.START_TAG -> {
                     when (parser.name.lowercase()) {
                         "row" -> {
-                            currentRow = mutableListOf()
+                            currentRowMap = mutableMapOf()
+                            currentColIdx = 0
                         }
                         "c" -> {
+                            val rAttr = parser.getAttributeValue(null, "r")
+                            if (!rAttr.isNullOrBlank()) {
+                                currentColIdx = parseColumnIndex(rAttr)
+                            }
                             currentCellType = parser.getAttributeValue(null, "t") ?: ""
                             currentCellValue = StringBuilder()
                         }
-                        "v" -> {
-                            insideV = true
-                        }
+                        "v" -> insideV = true
+                        "t" -> insideT = true
                     }
                 }
                 XmlPullParser.TEXT -> {
-                    if (insideV) {
+                    if (insideV || insideT) {
                         currentCellValue.append(parser.text)
                     }
                 }
                 XmlPullParser.END_TAG -> {
                     when (parser.name.lowercase()) {
-                        "v" -> {
-                            insideV = false
-                        }
+                        "v" -> insideV = false
+                        "t" -> insideT = false
                         "c" -> {
-                            val v = currentCellValue.toString().trim()
-                            val resolved = if (currentCellType == "s") {
-                                val idx = v.toIntOrNull()
-                                if (idx != null && idx in sharedStrings.indices) sharedStrings[idx] else v
-                            } else {
-                                v
+                            val raw = currentCellValue.toString().trim()
+                            val resolved = when (currentCellType) {
+                                "s" -> {
+                                    val idx = raw.toIntOrNull()
+                                    if (idx != null && idx in sharedStrings.indices) sharedStrings[idx] else raw
+                                }
+                                else -> raw
                             }
-                            currentRow.add(resolved)
+                            currentRowMap[currentColIdx] = resolved
+                            currentColIdx++
                         }
                         "row" -> {
-                            if (currentRow.any { it.isNotBlank() }) {
-                                rows.add(currentRow)
+                            if (currentRowMap.isNotEmpty()) {
+                                val maxCol = (currentRowMap.keys.maxOrNull() ?: -1)
+                                if (maxCol >= 0) {
+                                    val rowList = MutableList(maxCol + 1) { "" }
+                                    for ((col, text) in currentRowMap) {
+                                        rowList[col] = text
+                                    }
+                                    if (rowList.any { it.isNotBlank() }) {
+                                        rows.add(rowList)
+                                    }
+                                }
                             }
                         }
                     }
@@ -821,7 +975,7 @@ object DayBookExcelHelper {
     }
 
     /**
-     * Opens Android Native Save/Share Chooser with real .xls file.
+     * Opens Android Native Save/Share Chooser with real Excel file (.xlsx or .xls).
      */
     fun shareExcelFile(context: Context, file: File, chooserTitle: String = "Share / Save Day Book Excel") {
         val uri: Uri = FileProvider.getUriForFile(
@@ -830,8 +984,14 @@ object DayBookExcelHelper {
             file
         )
 
+        val mimeType = if (file.name.endsWith(".xlsx", ignoreCase = true)) {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        } else {
+            "application/vnd.ms-excel"
+        }
+
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/vnd.ms-excel"
+            type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, file.name)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

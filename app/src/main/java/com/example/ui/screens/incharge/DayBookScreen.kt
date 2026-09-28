@@ -658,7 +658,7 @@ fun ExcelImportExportDialog(
                     }
 
                     Text(
-                        text = "• Generates genuine Microsoft Excel .xls binary spreadsheet (MIME: application/vnd.ms-excel)\n• Columns: Date, Entry Type, Particular, Category, Sub Category, Site, Description, Payment Mode, Debit, Credit, Balance\n• Formats numeric cells and calculates closing totals.",
+                        text = "• Generates genuine Microsoft Excel .xlsx spreadsheet with Interactive Dropdowns for Category & Sub Category (also Entry Type & Payment Mode).\n• Includes a 'Categories_Master' reference sheet for easy offline editing.\n• Columns: Date, Entry Type, Particular, Category, Sub Category, Site, Description, Payment Mode, Debit, Credit, Balance.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp
@@ -676,7 +676,7 @@ fun ExcelImportExportDialog(
                                 try {
                                     val siteName = allSites.firstOrNull()?.name ?: "All Sites"
                                     val file = withContext(Dispatchers.IO) {
-                                        DayBookExcelHelper.exportDayBookToXls(
+                                        DayBookExcelHelper.exportDayBookToXlsx(
                                             context = context,
                                             transactions = currentTransactions,
                                             fromDate = fromDate,
@@ -686,9 +686,9 @@ fun ExcelImportExportDialog(
                                     }
                                     isProcessing = false
                                     isSuccess = true
-                                    statusMessage = "Day Book Excel exported successfully."
-                                    Toast.makeText(context, "Day Book Excel exported successfully.", Toast.LENGTH_SHORT).show()
-                                    DayBookExcelHelper.shareExcelFile(context, file, "Share Day Book Excel (.xls)")
+                                    statusMessage = "Day Book Excel (.xlsx) exported successfully with Dropdowns."
+                                    Toast.makeText(context, "Day Book Excel (.xlsx) exported successfully.", Toast.LENGTH_SHORT).show()
+                                    DayBookExcelHelper.shareExcelFile(context, file, "Share Day Book Excel (.xlsx)")
                                 } catch (e: Exception) {
                                     isProcessing = false
                                     isSuccess = false
@@ -704,11 +704,11 @@ fun ExcelImportExportDialog(
                         if (isProcessing) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Generating Excel .xls...")
+                            Text("Generating Excel .xlsx...")
                         } else {
                             Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Export & Share Excel (.xls)")
+                            Text("Export & Share Excel (.xlsx with Dropdowns)")
                         }
                     }
                 }
@@ -949,17 +949,17 @@ fun ExcelImportExportDialog(
                             coroutineScope.launch {
                                 try {
                                     val file = withContext(Dispatchers.IO) {
-                                        DayBookExcelHelper.generateSampleXlsFile(context)
+                                        DayBookExcelHelper.generateSampleXlsxFile(context)
                                     }
                                     isProcessing = false
                                     isSuccess = true
-                                    statusMessage = "Day Book sample Excel generated successfully."
+                                    statusMessage = "Day Book sample Excel (.xlsx) generated successfully with Dropdowns."
                                     Toast.makeText(context, "Sample Excel template ready.", Toast.LENGTH_SHORT).show()
-                                    DayBookExcelHelper.shareExcelFile(context, file, "Share Day Book Sample Template (.xls)")
+                                    DayBookExcelHelper.shareExcelFile(context, file, "Share Day Book Sample Template (.xlsx)")
                                 } catch (e: Exception) {
                                     isProcessing = false
                                     isSuccess = false
-                                    statusMessage = "Failed to create sample XLS: ${e.localizedMessage}"
+                                    statusMessage = "Failed to create sample XLSX: ${e.localizedMessage}"
                                     Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -975,7 +975,7 @@ fun ExcelImportExportDialog(
                         } else {
                             Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Download / Share Sample .xls")
+                            Text("Download Sample Excel (.xlsx with Dropdowns)")
                         }
                     }
                 }
