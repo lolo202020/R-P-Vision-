@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -83,6 +84,7 @@ import com.example.data.model.TransactionEntry
 import com.example.ui.components.DayBookPdfExportDialog
 import com.example.ui.components.DateRangeFilterCard
 import com.example.ui.components.ReceiptViewerDialog
+import com.example.ui.components.ResponsiveTransactionsTable
 import com.example.ui.components.TransactionItemCard
 import com.example.ui.components.formatCurrency
 import com.example.ui.theme.ExpenseRed
@@ -112,8 +114,8 @@ fun DayBookScreen(
     var showExcelDialog by remember { mutableStateOf(false) }
     var showPdfDialog by remember { mutableStateOf(false) }
 
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+    val totalIncome = remember(transactions) { transactions.filter { it.type == "INCOME" }.sumOf { it.amount } }
+    val totalExpense = remember(transactions) { transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount } }
     val netBalance = totalIncome - totalExpense
 
     if (selectedTxForReceipt != null) {
@@ -141,57 +143,103 @@ fun DayBookScreen(
         )
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .testTag("incharge_daybook_list"),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        // Excel & PDF Report Header Buttons
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Day Book Register",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { showPdfDialog = true },
-                        modifier = Modifier.testTag("btn_daybook_pdf"),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Download PDF", style = MaterialTheme.typography.labelMedium)
-                    }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val isWideScreen = maxWidth >= 768.dp
+        var viewMode by remember(isWideScreen) { mutableStateOf(if (isWideScreen) "TABLE" else "CARDS") }
 
-                    OutlinedButton(
-                        onClick = { showExcelDialog = true },
-                        modifier = Modifier.testTag("btn_daybook_excel"),
-                        shape = RoundedCornerShape(8.dp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .testTag("incharge_daybook_list"),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Excel & PDF Report Header Buttons + View Mode Toggle
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Day Book Register",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.TableChart,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Excel", style = MaterialTheme.typography.labelMedium)
+                        // Toggle Table vs Cards
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(2.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (viewMode == "TABLE") MaterialTheme.colorScheme.primary else Color.Transparent,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { viewMode = "TABLE" }
+                            ) {
+                                Text(
+                                    "Table",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (viewMode == "TABLE") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (viewMode == "CARDS") MaterialTheme.colorScheme.primary else Color.Transparent,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { viewMode = "CARDS" }
+                            ) {
+                                Text(
+                                    "Cards",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (viewMode == "CARDS") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { showPdfDialog = true },
+                            modifier = Modifier.testTag("btn_daybook_pdf"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("PDF", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        OutlinedButton(
+                            onClick = { showExcelDialog = true },
+                            modifier = Modifier.testTag("btn_daybook_excel"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TableChart,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Excel", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
-        }
 
         // Date Range Filter (From Date & To Date)
         item {
@@ -325,6 +373,13 @@ fun DayBookScreen(
                     }
                 }
             }
+        } else if (viewMode == "TABLE") {
+            item {
+                ResponsiveTransactionsTable(
+                    transactions = transactions,
+                    onViewReceipt = { selectedTxForReceipt = it }
+                )
+            }
         } else {
             items(transactions, key = { it.id }) { tx ->
                 TransactionItemCard(
@@ -337,6 +392,7 @@ fun DayBookScreen(
         item {
             Spacer(modifier = Modifier.height(80.dp))
         }
+    }
     }
 }
 

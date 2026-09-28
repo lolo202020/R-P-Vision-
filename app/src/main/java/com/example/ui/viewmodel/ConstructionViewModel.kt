@@ -102,7 +102,7 @@ class ConstructionViewModel(
     val lastSyncTime: StateFlow<Long> = _lastSyncTime.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             // Ensure Admin user has password 20262026
             val adminUser = repository.getUserByMobile("9621803006")
             if (adminUser != null) {
@@ -172,9 +172,11 @@ class ConstructionViewModel(
             }
         }
 
-        // Background sync loop
-        viewModelScope.launch {
-            if (syncManager != null && syncManager.isConfigured()) {
+        // Background sync loop - fully asynchronous on IO dispatcher with delayed start
+        viewModelScope.launch(Dispatchers.IO) {
+            // Delay initial background sync so UI loads instantly without network lag
+            kotlinx.coroutines.delay(2000)
+            if (syncManager != null && syncManager.isConfigured() && syncManager.isAutoSyncEnabled()) {
                 try {
                     syncManager.syncAll(repository)
                     _lastSyncTime.value = syncManager.getLastSyncTime()
@@ -184,7 +186,7 @@ class ConstructionViewModel(
             }
 
             while (true) {
-                kotlinx.coroutines.delay(15000)
+                kotlinx.coroutines.delay(20000)
                 if (syncManager != null && syncManager.isConfigured() && syncManager.isAutoSyncEnabled() && !_isSyncing.value) {
                     try {
                         syncManager.syncAll(repository)
@@ -251,29 +253,29 @@ class ConstructionViewModel(
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     val allUsers: StateFlow<List<User>> = repository.allUsers
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allSites: StateFlow<List<Site>> = repository.allSites
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allTransactions: StateFlow<List<TransactionEntry>> = repository.allTransactions
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // --- Authentication & Session State ---
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
     val allStaff: StateFlow<List<StaffMember>> = repository.allStaff
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allAttendance: StateFlow<List<StaffAttendance>> = repository.allAttendance
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allSalaryRecords: StateFlow<List<SalaryRecord>> = repository.allSalaryRecords
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allAuditLogs: StateFlow<List<AuditLog>> = repository.allAuditLogs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val inchargeStaff: StateFlow<List<StaffMember>> = combine(_currentUser, allStaff) { user, staff ->
         if (user == null) emptyList()

@@ -85,6 +85,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -107,6 +108,8 @@ import com.example.ui.theme.OnIncomeGreenContainer
 import com.example.ui.theme.SlateContainer
 import com.example.ui.theme.SlateSecondary
 import com.example.ui.viewmodel.ConstructionViewModel
+import com.example.ui.components.NavDestination
+import com.example.ui.components.ResponsiveAppShell
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,6 +130,16 @@ fun SiteInchargeMainScreen(
 
     val isCloudConfigured by viewModel.isCloudConfigured.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+
+    val navDestinations = remember {
+        listOf(
+            NavDestination(0, "Dashboard", Icons.Default.Dashboard, "nav_incharge_dashboard"),
+            NavDestination(1, "Add Entry", Icons.Default.Add, "nav_incharge_add"),
+            NavDestination(2, "Day Book", Icons.AutoMirrored.Filled.ReceiptLong, "nav_incharge_daybook"),
+            NavDestination(3, "Staff & Salary", Icons.Default.People, "nav_incharge_staff"),
+            NavDestination(4, "Profile", Icons.Default.Person, "nav_incharge_profile")
+        )
+    }
 
     if (showCloudSyncDialog) {
         CloudSyncDialog(
@@ -177,7 +190,14 @@ fun SiteInchargeMainScreen(
         )
     }
 
-    Scaffold(
+    ResponsiveAppShell(
+        items = navDestinations,
+        selectedIndex = selectedNavTab,
+        onItemSelected = { selectedNavTab = it },
+        brandSubtitle = currentUser?.assignedSiteName ?: "Site Incharge",
+        userName = currentUser?.name ?: "Incharge",
+        userRole = "Site Incharge",
+        onLogoutClick = { showLogoutConfirmation = true },
         topBar = {
             TopAppBar(
                 title = {
@@ -195,13 +215,29 @@ fun SiteInchargeMainScreen(
                                     text = currentUser?.assignedSiteName ?: "Assigned Site",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                ) {
+                                    Text(
+                                        text = "LIVE",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                             Text(
-                                text = "R P V C • ${currentUser?.name ?: "Incharge"}",
+                                text = "R P V C • ${currentUser?.name ?: "Incharge"} • ${currentUser?.mobile ?: ""}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -235,48 +271,6 @@ fun SiteInchargeMainScreen(
                 )
             )
         },
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    selected = selectedNavTab == 0,
-                    onClick = { selectedNavTab = 0 },
-                    icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Dashboard") },
-                    modifier = Modifier.testTag("nav_incharge_dashboard")
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 1,
-                    onClick = { selectedNavTab = 1 },
-                    icon = { Icon(Icons.Default.Add, contentDescription = "Add Entry", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Add Entry") },
-                    modifier = Modifier.testTag("nav_incharge_add")
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 2,
-                    onClick = { selectedNavTab = 2 },
-                    icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Day Book", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Day Book") },
-                    modifier = Modifier.testTag("nav_incharge_daybook")
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 3,
-                    onClick = { selectedNavTab = 3 },
-                    icon = { Icon(Icons.Default.People, contentDescription = "Staff & Salary", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Staff & Salary") },
-                    modifier = Modifier.testTag("nav_incharge_staff")
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 4,
-                    onClick = { selectedNavTab = 4 },
-                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Profile") },
-                    modifier = Modifier.testTag("nav_incharge_profile")
-                )
-            }
-        },
         floatingActionButton = {
             if (selectedNavTab == 0 || selectedNavTab == 2) {
                 FloatingActionButton(
@@ -292,11 +286,10 @@ fun SiteInchargeMainScreen(
                 }
             }
         }
-    ) { innerPadding ->
+    ) { windowInfo ->
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .padding(innerPadding)
         ) {
             when (selectedNavTab) {
                 0 -> InchargeDashboardView(
@@ -311,7 +304,8 @@ fun SiteInchargeMainScreen(
                         selectedNavTab = 1
                     },
                     onViewAllEntriesClick = { selectedNavTab = 2 },
-                    onViewReceipt = { selectedTxForReceipt = it }
+                    onViewReceipt = { selectedTxForReceipt = it },
+                    isWideScreen = windowInfo.isWideScreen
                 )
                 1 -> AddEntryScreen(
                     viewModel = viewModel,
@@ -338,7 +332,8 @@ private fun InchargeDashboardView(
     onAddExpenseClick: () -> Unit,
     onAddIncomeClick: () -> Unit,
     onViewAllEntriesClick: () -> Unit,
-    onViewReceipt: (TransactionEntry) -> Unit
+    onViewReceipt: (TransactionEntry) -> Unit,
+    isWideScreen: Boolean = false
 ) {
     LazyColumn(
         modifier = Modifier
@@ -455,57 +450,106 @@ private fun InchargeDashboardView(
             )
         }
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatCard(
-                    title = "Cash in Hand",
-                    amount = stats.cashBalance,
-                    icon = Icons.Default.Payments,
-                    iconColor = AmberPrimary,
-                    containerColor = AmberContainer,
-                    contentColor = OnAmberContainer,
-                    modifier = Modifier.weight(1f)
-                )
+        if (isWideScreen) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        title = "Cash in Hand",
+                        amount = stats.cashBalance,
+                        icon = Icons.Default.Payments,
+                        iconColor = AmberPrimary,
+                        containerColor = AmberContainer,
+                        contentColor = OnAmberContainer,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                StatCard(
-                    title = "Bank Account",
-                    amount = stats.bankBalance,
-                    icon = Icons.Default.AccountBalance,
-                    iconColor = Color(0xFF4F46E5),
-                    containerColor = Color(0xFFEEF2FF),
-                    contentColor = Color(0xFF312E81),
-                    modifier = Modifier.weight(1f)
-                )
+                    StatCard(
+                        title = "Bank Account",
+                        amount = stats.bankBalance,
+                        icon = Icons.Default.AccountBalance,
+                        iconColor = Color(0xFF4F46E5),
+                        containerColor = Color(0xFFEEF2FF),
+                        contentColor = Color(0xFF312E81),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    StatCard(
+                        title = "UPI Balance",
+                        amount = stats.upiBalance,
+                        icon = Icons.Default.QrCode,
+                        iconColor = Color(0xFF9333EA),
+                        containerColor = Color(0xFFFAF5FF),
+                        contentColor = Color(0xFF581C87),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    StatCard(
+                        title = "Material Spend",
+                        amount = stats.materialExpense,
+                        icon = Icons.Default.Apartment,
+                        iconColor = ExpenseRed,
+                        containerColor = ExpenseRedContainer,
+                        contentColor = OnExpenseRedContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
-        }
+        } else {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        title = "Cash in Hand",
+                        amount = stats.cashBalance,
+                        icon = Icons.Default.Payments,
+                        iconColor = AmberPrimary,
+                        containerColor = AmberContainer,
+                        contentColor = OnAmberContainer,
+                        modifier = Modifier.weight(1f)
+                    )
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatCard(
-                    title = "UPI Balance",
-                    amount = stats.upiBalance,
-                    icon = Icons.Default.QrCode,
-                    iconColor = Color(0xFF9333EA),
-                    containerColor = Color(0xFFFAF5FF),
-                    contentColor = Color(0xFF581C87),
-                    modifier = Modifier.weight(1f)
-                )
+                    StatCard(
+                        title = "Bank Account",
+                        amount = stats.bankBalance,
+                        icon = Icons.Default.AccountBalance,
+                        iconColor = Color(0xFF4F46E5),
+                        containerColor = Color(0xFFEEF2FF),
+                        contentColor = Color(0xFF312E81),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
 
-                StatCard(
-                    title = "Material Spend",
-                    amount = stats.materialExpense,
-                    icon = Icons.Default.Apartment,
-                    iconColor = ExpenseRed,
-                    containerColor = ExpenseRedContainer,
-                    contentColor = OnExpenseRedContainer,
-                    modifier = Modifier.weight(1f)
-                )
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        title = "UPI Balance",
+                        amount = stats.upiBalance,
+                        icon = Icons.Default.QrCode,
+                        iconColor = Color(0xFF9333EA),
+                        containerColor = Color(0xFFFAF5FF),
+                        contentColor = Color(0xFF581C87),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    StatCard(
+                        title = "Material Spend",
+                        amount = stats.materialExpense,
+                        icon = Icons.Default.Apartment,
+                        iconColor = ExpenseRed,
+                        containerColor = ExpenseRedContainer,
+                        contentColor = OnExpenseRedContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 

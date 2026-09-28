@@ -91,6 +91,7 @@ import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
 import com.example.ui.theme.OnAmberContainer
 import com.example.ui.viewmodel.ConstructionViewModel
+import com.example.ui.components.ResponsiveFormContainer
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -171,14 +172,18 @@ fun AddEntryScreen(
         }
     }
 
-    Column(
+    ResponsiveFormContainer(
+        maxWidth = 720.dp,
         modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(scrollState)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         // Entry Type Tabs
         Surface(
             shape = RoundedCornerShape(14.dp),
@@ -891,5 +896,6 @@ fun AddEntryScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
     }
 }

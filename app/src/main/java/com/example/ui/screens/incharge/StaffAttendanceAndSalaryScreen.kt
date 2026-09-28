@@ -91,40 +91,47 @@ fun StaffAttendanceAndSalaryScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            contentAlignment = Alignment.TopCenter
         ) {
-            when (selectedTab) {
-                0 -> StaffDirectoryView(
-                    staffList = staffList,
-                    onAddStaff = {
-                        selectedStaffForEdit = null
-                        showAddStaffDialog = true
-                    },
-                    onEditStaff = { staff ->
-                        selectedStaffForEdit = staff
-                        showAddStaffDialog = true
-                    },
-                    onDeleteStaff = { viewModel.deleteStaff(it) }
-                )
-                1 -> ButtonBasedAttendanceView(
-                    staffList = staffList,
-                    attendanceList = attendanceList,
-                    sites = sites,
-                    viewModel = viewModel,
-                    currentUser = currentUser
-                )
-                2 -> SalaryPayoutsView(
-                    salaryRecords = salaryRecords,
-                    staffList = staffList,
-                    attendanceList = attendanceList,
-                    onOpenSalaryCalculator = {
-                        selectedStaffForSalary = it
-                        showSalaryDialog = true
-                    },
-                    onViewSlip = { salarySlipPreview = it },
-                    onDeleteRecord = { viewModel.deleteSalaryRecord(it) }
-                )
-                3 -> AuditLogsView(auditLogs = auditLogs)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 1100.dp)
+            ) {
+                when (selectedTab) {
+                    0 -> StaffDirectoryView(
+                        staffList = staffList,
+                        onAddStaff = {
+                            selectedStaffForEdit = null
+                            showAddStaffDialog = true
+                        },
+                        onEditStaff = { staff ->
+                            selectedStaffForEdit = staff
+                            showAddStaffDialog = true
+                        },
+                        onDeleteStaff = { viewModel.deleteStaff(it) }
+                    )
+                    1 -> ButtonBasedAttendanceView(
+                        staffList = staffList,
+                        attendanceList = attendanceList,
+                        sites = sites,
+                        viewModel = viewModel,
+                        currentUser = currentUser
+                    )
+                    2 -> SalaryPayoutsView(
+                        salaryRecords = salaryRecords,
+                        staffList = staffList,
+                        attendanceList = attendanceList,
+                        onOpenSalaryCalculator = {
+                            selectedStaffForSalary = it
+                            showSalaryDialog = true
+                        },
+                        onViewSlip = { salarySlipPreview = it },
+                        onDeleteRecord = { viewModel.deleteSalaryRecord(it) }
+                    )
+                    3 -> AuditLogsView(auditLogs = auditLogs)
+                }
             }
         }
     }

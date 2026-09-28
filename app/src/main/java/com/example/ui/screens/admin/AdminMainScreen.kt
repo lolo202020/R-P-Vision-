@@ -141,6 +141,10 @@ import com.example.ui.components.RpvcBrandLogo
 import com.example.ui.components.StatCard
 import com.example.ui.components.TransactionItemCard
 import com.example.ui.components.formatCurrency
+import com.example.ui.components.NavDestination
+import com.example.ui.components.ResponsiveAppShell
+import com.example.ui.components.ResponsiveTransactionsTable
+import com.example.ui.components.ResponsiveWindowInfo
 import com.example.ui.theme.AmberContainer
 import com.example.ui.theme.AmberPrimary
 import com.example.ui.theme.ExpenseRed
@@ -274,7 +278,24 @@ fun AdminMainScreen(
         )
     }
 
-    Scaffold(
+    val navDestinations = remember {
+        listOf(
+            NavDestination(0, "Overview", Icons.Default.Dashboard, "nav_admin_overview"),
+            NavDestination(1, "Sites", Icons.Default.Apartment, "nav_admin_sites"),
+            NavDestination(2, "Categories", Icons.Default.Category, "nav_admin_categories"),
+            NavDestination(3, "Day Book", Icons.AutoMirrored.Filled.ReceiptLong, "nav_admin_daybook"),
+            NavDestination(4, "Salary", Icons.Default.Payments, "nav_admin_salary")
+        )
+    }
+
+    ResponsiveAppShell(
+        items = navDestinations,
+        selectedIndex = selectedAdminTab,
+        onItemSelected = { selectedAdminTab = it },
+        brandSubtitle = "Admin Console",
+        userName = currentUser?.name ?: "Director",
+        userRole = "Administrator",
+        onLogoutClick = { showLogoutConfirmation = true },
         topBar = {
             TopAppBar(
                 title = {
@@ -353,54 +374,11 @@ fun AdminMainScreen(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             )
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    selected = selectedAdminTab == 0,
-                    onClick = { selectedAdminTab = 0 },
-                    icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Overview") },
-                    modifier = Modifier.testTag("nav_admin_overview")
-                )
-                NavigationBarItem(
-                    selected = selectedAdminTab == 1,
-                    onClick = { selectedAdminTab = 1 },
-                    icon = { Icon(Icons.Default.Apartment, contentDescription = "Sites", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Sites") },
-                    modifier = Modifier.testTag("nav_admin_sites")
-                )
-                NavigationBarItem(
-                    selected = selectedAdminTab == 2,
-                    onClick = { selectedAdminTab = 2 },
-                    icon = { Icon(Icons.Default.Category, contentDescription = "Categories", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Categories") },
-                    modifier = Modifier.testTag("nav_admin_categories")
-                )
-                NavigationBarItem(
-                    selected = selectedAdminTab == 3,
-                    onClick = { selectedAdminTab = 3 },
-                    icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Day Book", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Day Book") },
-                    modifier = Modifier.testTag("nav_admin_daybook")
-                )
-                NavigationBarItem(
-                    selected = selectedAdminTab == 4,
-                    onClick = { selectedAdminTab = 4 },
-                    icon = { Icon(Icons.Default.Payments, contentDescription = "Salary Management", modifier = Modifier.size(18.dp)) },
-                    label = { Text("Salary") },
-                    modifier = Modifier.testTag("nav_admin_salary")
-                )
-            }
         }
-    ) { innerPadding ->
+    ) { windowInfo ->
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
             // Global Filter Header Row (Filter by Site & Date)
@@ -532,7 +510,8 @@ fun AdminMainScreen(
                     recentTransactions = filteredTransactions.take(6),
                     onViewReceipt = { selectedTxForReceipt = it },
                     onNavigateToDayBook = { selectedAdminTab = 3 },
-                    onEditTransaction = { selectedTxForEdit = it }
+                    onEditTransaction = { selectedTxForEdit = it },
+                    isWideScreen = windowInfo.isWideScreen
                 )
                 1 -> AdminSitesComparisonView(siteStats = siteStats, viewModel = viewModel)
                 2 -> AdminCategoryBreakdownView(
@@ -552,7 +531,8 @@ fun AdminMainScreen(
                     onPaymentModeChange = { viewModel.setAdminPaymentModeFilter(it) },
                     onViewReceipt = { selectedTxForReceipt = it },
                     viewModel = viewModel,
-                    onEditTransaction = { selectedTxForEdit = it }
+                    onEditTransaction = { selectedTxForEdit = it },
+                    isWideScreen = windowInfo.isWideScreen
                 )
                 4 -> com.example.ui.screens.incharge.StaffAttendanceAndSalaryScreen(viewModel = viewModel, isAdminView = true)
             }
@@ -567,7 +547,8 @@ private fun AdminOverviewDashboard(
     recentTransactions: List<TransactionEntry>,
     onViewReceipt: (TransactionEntry) -> Unit,
     onNavigateToDayBook: () -> Unit,
-    onEditTransaction: ((TransactionEntry) -> Unit)? = null
+    onEditTransaction: ((TransactionEntry) -> Unit)? = null,
+    isWideScreen: Boolean = false
 ) {
     LazyColumn(
         modifier = Modifier
@@ -646,57 +627,103 @@ private fun AdminOverviewDashboard(
             )
         }
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatCard(
-                    title = "Cash in Hand",
-                    amount = summary.cashBalance,
-                    icon = Icons.Default.Payments,
-                    iconColor = AmberPrimary,
-                    containerColor = AmberContainer,
-                    contentColor = OnAmberContainer,
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatCard(
-                    title = "Bank Balance",
-                    amount = summary.bankBalance,
-                    icon = Icons.Default.AccountBalance,
-                    iconColor = Color(0xFF4F46E5),
-                    containerColor = Color(0xFFEEF2FF),
-                    contentColor = Color(0xFF312E81),
-                    modifier = Modifier.weight(1f)
-                )
+        if (isWideScreen) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        title = "Cash in Hand",
+                        amount = summary.cashBalance,
+                        icon = Icons.Default.Payments,
+                        iconColor = AmberPrimary,
+                        containerColor = AmberContainer,
+                        contentColor = OnAmberContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "Bank Balance",
+                        amount = summary.bankBalance,
+                        icon = Icons.Default.AccountBalance,
+                        iconColor = Color(0xFF4F46E5),
+                        containerColor = Color(0xFFEEF2FF),
+                        contentColor = Color(0xFF312E81),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "UPI Balance",
+                        amount = summary.upiBalance,
+                        icon = Icons.Default.QrCode,
+                        iconColor = Color(0xFF9333EA),
+                        containerColor = Color(0xFFFAF5FF),
+                        contentColor = Color(0xFF581C87),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "Other Payments",
+                        amount = summary.otherBalance,
+                        icon = Icons.Default.CreditCard,
+                        iconColor = SlateSecondary,
+                        containerColor = SlateContainer,
+                        contentColor = SlateSecondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
-        }
+        } else {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        title = "Cash in Hand",
+                        amount = summary.cashBalance,
+                        icon = Icons.Default.Payments,
+                        iconColor = AmberPrimary,
+                        containerColor = AmberContainer,
+                        contentColor = OnAmberContainer,
+                        modifier = Modifier.weight(1f)
+                    )
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatCard(
-                    title = "UPI Balance",
-                    amount = summary.upiBalance,
-                    icon = Icons.Default.QrCode,
-                    iconColor = Color(0xFF9333EA),
-                    containerColor = Color(0xFFFAF5FF),
-                    contentColor = Color(0xFF581C87),
-                    modifier = Modifier.weight(1f)
-                )
+                    StatCard(
+                        title = "Bank Balance",
+                        amount = summary.bankBalance,
+                        icon = Icons.Default.AccountBalance,
+                        iconColor = Color(0xFF4F46E5),
+                        containerColor = Color(0xFFEEF2FF),
+                        contentColor = Color(0xFF312E81),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
 
-                StatCard(
-                    title = "Other Payments",
-                    amount = summary.otherBalance,
-                    icon = Icons.Default.CreditCard,
-                    iconColor = SlateSecondary,
-                    containerColor = SlateContainer,
-                    contentColor = SlateSecondary,
-                    modifier = Modifier.weight(1f)
-                )
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        title = "UPI Balance",
+                        amount = summary.upiBalance,
+                        icon = Icons.Default.QrCode,
+                        iconColor = Color(0xFF9333EA),
+                        containerColor = Color(0xFFFAF5FF),
+                        contentColor = Color(0xFF581C87),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    StatCard(
+                        title = "Other Payments",
+                        amount = summary.otherBalance,
+                        icon = Icons.Default.CreditCard,
+                        iconColor = SlateSecondary,
+                        containerColor = SlateContainer,
+                        contentColor = SlateSecondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
@@ -1523,11 +1550,13 @@ private fun AdminMasterDayBookView(
     onPaymentModeChange: (String?) -> Unit,
     onViewReceipt: (TransactionEntry) -> Unit,
     viewModel: ConstructionViewModel,
-    onEditTransaction: ((TransactionEntry) -> Unit)? = null
+    onEditTransaction: ((TransactionEntry) -> Unit)? = null,
+    isWideScreen: Boolean = false
 ) {
     val context = LocalContext.current
     var showExcelDialog by remember { mutableStateOf(false) }
     var showPdfDialog by remember { mutableStateOf(false) }
+    var viewMode by remember(isWideScreen) { mutableStateOf(if (isWideScreen) "TABLE" else "CARDS") }
 
     if (showPdfDialog) {
         DayBookPdfExportDialog(
@@ -1653,7 +1682,7 @@ private fun AdminMasterDayBookView(
             }
         }
 
-        // Transactions list count summary with PDF and Excel Tools
+        // Transactions list count summary with PDF and Excel Tools + View Mode Toggle
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1665,7 +1694,49 @@ private fun AdminMasterDayBookView(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Toggle Table vs Cards
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(2.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (viewMode == "TABLE") MaterialTheme.colorScheme.primary else Color.Transparent,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { viewMode = "TABLE" }
+                        ) {
+                            Text(
+                                "Table",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (viewMode == "TABLE") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (viewMode == "CARDS") MaterialTheme.colorScheme.primary else Color.Transparent,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { viewMode = "CARDS" }
+                        ) {
+                            Text(
+                                "Cards",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (viewMode == "CARDS") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
                     OutlinedButton(
                         onClick = { showPdfDialog = true },
                         modifier = Modifier.testTag("btn_admin_pdf"),
@@ -1677,7 +1748,7 @@ private fun AdminMasterDayBookView(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("PDF Report", style = MaterialTheme.typography.labelMedium)
+                        Text("PDF", style = MaterialTheme.typography.labelMedium)
                     }
 
                     OutlinedButton(
@@ -1717,6 +1788,14 @@ private fun AdminMasterDayBookView(
                         )
                     }
                 }
+            }
+        } else if (viewMode == "TABLE") {
+            item {
+                ResponsiveTransactionsTable(
+                    transactions = transactions,
+                    onViewReceipt = onViewReceipt,
+                    onEditTransaction = onEditTransaction
+                )
             }
         } else {
             items(transactions, key = { it.id }) { tx ->

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -51,6 +53,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -92,6 +95,13 @@ fun LoginScreen(
     var mobileNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    LaunchedEffect(loginError) {
+        if (!loginError.isNullOrBlank()) {
+            isSubmitting = false
+        }
+    }
 
     var selectedSite by remember { mutableStateOf<Site?>(null) }
     var siteDropdownExpanded by remember { mutableStateOf(false) }
@@ -107,15 +117,21 @@ fun LoginScreen(
 
     val scrollState = rememberScrollState()
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
     ) {
-        // Top Left Row with Cloud Sync Option on the LEFT side of the screen
+        Column(
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top Left Row with Cloud Sync Option on the LEFT side of the screen
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -198,8 +214,8 @@ fun LoginScreen(
                     selected = selectedTabIndex == 1,
                     onClick = {
                         selectedTabIndex = 1
-                        mobileNumber = ""
-                        password = ""
+                        mobileNumber = "9621803006"
+                        password = "20262026"
                         selectedSite = null
                     },
                     modifier = Modifier.testTag("tab_admin"),
@@ -447,13 +463,20 @@ fun LoginScreen(
                 // Login Button
                 Button(
                     onClick = {
-                        viewModel.login(
-                            mobile = mobileNumber,
-                            pass = password,
-                            selectedSiteId = if (selectedTabIndex == 0) selectedSite?.id else null,
-                            onRoleDecided = onLoginSuccess
-                        )
+                        if (!isSubmitting) {
+                            isSubmitting = true
+                            viewModel.login(
+                                mobile = mobileNumber,
+                                pass = password,
+                                selectedSiteId = if (selectedTabIndex == 0) selectedSite?.id else null,
+                                onRoleDecided = { role ->
+                                    isSubmitting = false
+                                    onLoginSuccess(role)
+                                }
+                            )
+                        }
                     },
+                    enabled = !isSubmitting,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
@@ -461,15 +484,24 @@ fun LoginScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text(
-                        text = if (selectedTabIndex == 0) "Login to Site Console" else "Login to Admin Console",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        Text(
+                            text = if (selectedTabIndex == 0) "Login to Site Console" else "Login to Admin Console",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
     }
 }
