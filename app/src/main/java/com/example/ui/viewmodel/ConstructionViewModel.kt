@@ -483,6 +483,27 @@ class ConstructionViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Site Incharge Category-wise Expense Stats
+    val inchargeCategoryExpenseStats: StateFlow<List<CategorySummaryStats>> = inchargeTransactions.map { txList ->
+        val expenseTxs = txList.filter { it.type == "EXPENSE" }
+        val totalExpense = expenseTxs.sumOf { it.amount }
+        if (totalExpense <= 0.0) {
+            emptyList()
+        } else {
+            val grouped = expenseTxs.groupBy { it.category }
+            grouped.map { (cat, list) ->
+                val sum = list.sumOf { it.amount }
+                CategorySummaryStats(
+                    category = cat,
+                    totalAmount = sum,
+                    percentage = ((sum / totalExpense) * 100).toFloat(),
+                    count = list.size,
+                    isIncome = false
+                )
+            }.sortedByDescending { it.totalAmount }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Admin Payment Mode Stats
     val adminPaymentModeStats: StateFlow<List<PaymentModeStats>> = adminFilteredTransactions.map { txList ->
         CategoryConstants.PAYMENT_MODES.map { mode ->

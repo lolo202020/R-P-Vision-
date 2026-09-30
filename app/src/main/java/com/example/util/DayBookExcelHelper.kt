@@ -488,16 +488,16 @@ object DayBookExcelHelper {
   </mergeCells>
   <dataValidations count="4">
     <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="B5:B1000">
-      <formula1>&apos;Categories_Master&apos;!${'$'}A${'$'}2:${'$'}A${'$'}${entryTypes.size + 1}</formula1>
+      <formula1>Categories_Master!${'$'}A${'$'}2:${'$'}A${'$'}${entryTypes.size + 1}</formula1>
     </dataValidation>
     <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="D5:D1000">
-      <formula1>&apos;Categories_Master&apos;!${'$'}B${'$'}2:${'$'}B${'$'}${categories.size + 1}</formula1>
+      <formula1>Categories_Master!${'$'}B${'$'}2:${'$'}B${'$'}${categories.size + 1}</formula1>
     </dataValidation>
     <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="E5:E1000">
-      <formula1>&apos;Categories_Master&apos;!${'$'}C${'$'}2:${'$'}C${'$'}${subCategories.size + 1}</formula1>
+      <formula1>Categories_Master!${'$'}C${'$'}2:${'$'}C${'$'}${subCategories.size + 1}</formula1>
     </dataValidation>
     <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="H5:H1000">
-      <formula1>&apos;Categories_Master&apos;!${'$'}D${'$'}2:${'$'}D${'$'}${paymentModes.size + 1}</formula1>
+      <formula1>Categories_Master!${'$'}D${'$'}2:${'$'}D${'$'}${paymentModes.size + 1}</formula1>
     </dataValidation>
   </dataValidations>
 </worksheet>""")
@@ -639,17 +639,32 @@ object DayBookExcelHelper {
             }
         }
 
-        // Defaults if headers weren't found or mapped standard
-        if (colDate == -1) colDate = 0
-        if (colType == -1 && colDebit == -1 && colCredit == -1) colType = 1
-        if (colParticular == -1) colParticular = 2
-        if (colCategory == -1) colCategory = 3
-        if (colSubCategory == -1) colSubCategory = 4
-        if (colSite == -1) colSite = 5
-        if (colDescription == -1) colDescription = 6
-        if (colMode == -1) colMode = 7
-        if (colDebit == -1 && colAmount == -1) colDebit = 8
-        if (colCredit == -1 && colAmount == -1) colCredit = 9
+        // Defaults: If no headers were detected at all, assume standard column order (0 to 9)
+        if (headerRowIndex == -1) {
+            if (colDate == -1) colDate = 0
+            if (colType == -1) colType = 1
+            if (colParticular == -1) colParticular = 2
+            if (colCategory == -1) colCategory = 3
+            if (colSubCategory == -1) colSubCategory = 4
+            if (colSite == -1) colSite = 5
+            if (colDescription == -1) colDescription = 6
+            if (colMode == -1) colMode = 7
+            if (colDebit == -1 && colAmount == -1) colDebit = 8
+            if (colCredit == -1 && colAmount == -1) colCredit = 9
+        } else {
+            // When header row exists, ensure date and amount fallback if not named standard
+            if (colDate == -1) colDate = 0
+            if (colDebit == -1 && colCredit == -1 && colAmount == -1) {
+                // Look for any header with numeric keywords or fallback to last columns
+                for ((idx, name) in headerRow.withIndex()) {
+                    val n = name.lowercase().trim()
+                    if (n.contains("rs") || n.contains("rupee") || n.contains("val") || n.contains("cost") || n.contains("price")) {
+                        colAmount = idx
+                        break
+                    }
+                }
+            }
+        }
 
         val validEntries = mutableListOf<TransactionEntry>()
         val errors = mutableListOf<String>()
@@ -843,12 +858,16 @@ object DayBookExcelHelper {
 
         ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
             var entry: ZipEntry? = zis.nextEntry
+            var foundSheet1 = false
             while (entry != null) {
                 val entryName = entry.name.lowercase()
                 if (entryName == "xl/sharedstrings.xml") {
                     val ssBytes = zis.readBytes()
                     sharedStrings.addAll(parseSharedStringsXml(ByteArrayInputStream(ssBytes)))
-                } else if (entryName == "xl/worksheets/sheet1.xml" || (entryName.startsWith("xl/worksheets/sheet") && sheetBytes == null)) {
+                } else if (entryName == "xl/worksheets/sheet1.xml") {
+                    sheetBytes = zis.readBytes()
+                    foundSheet1 = true
+                } else if (entryName.startsWith("xl/worksheets/sheet") && !foundSheet1 && sheetBytes == null) {
                     sheetBytes = zis.readBytes()
                 }
                 zis.closeEntry()

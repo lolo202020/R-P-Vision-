@@ -7,6 +7,7 @@ import com.example.data.model.StaffAttendance
 import com.example.data.model.StaffMember
 import com.example.data.model.TransactionEntry
 import com.example.util.AttendancePdfHelper
+import com.example.util.DayBookExcelHelper
 import com.example.util.DayBookPdfHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -153,5 +154,126 @@ class ExampleRobolectricTest {
         )
         assertEquals("SITE_INCHARGE", inchargeUser.role)
         assertEquals(1L, inchargeUser.assignedSiteId)
+    }
+
+    @Test
+    fun `verify DayBook Excel export generates valid xlsx file with categories master`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val txList = listOf(
+            TransactionEntry(
+                id = 1L,
+                type = "EXPENSE",
+                dateMillis = 1700000000000L,
+                dateFormatted = "2026-08-30",
+                siteId = 1L,
+                siteName = "Test Site",
+                userId = 2L,
+                userName = "Ramesh",
+                userMobile = "9876500002",
+                category = "Material Purchase",
+                subCategory = "Cement",
+                partyName = "UltraTech",
+                description = "50 bags",
+                amount = 18000.0,
+                paymentMode = "UPI"
+            ),
+            TransactionEntry(
+                id = 2L,
+                type = "INCOME",
+                dateMillis = 1700000100000L,
+                dateFormatted = "2026-08-30",
+                siteId = 1L,
+                siteName = "Test Site",
+                userId = 2L,
+                userName = "Ramesh",
+                userMobile = "9876500002",
+                category = "Head Office",
+                subCategory = "HO Advance",
+                partyName = "HO",
+                description = "Advance",
+                amount = 50000.0,
+                paymentMode = "Bank"
+            )
+        )
+
+        val file = DayBookExcelHelper.exportDayBookToXlsx(context, txList, "2026-08-01", "2026-08-30", "Test Site")
+        assertNotNull(file)
+        assertTrue(file.exists())
+        assertTrue(file.length() > 500)
+        assertTrue(file.name.endsWith(".xlsx"))
+    }
+
+    @Test
+    fun `verify DayBook sample template generates valid xlsx file`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val sampleFile = DayBookExcelHelper.generateSampleXlsxFile(context)
+        assertNotNull(sampleFile)
+        assertTrue(sampleFile.exists())
+        assertTrue(sampleFile.length() > 500)
+        assertTrue(sampleFile.name.endsWith(".xlsx"))
+    }
+
+    @Test
+    fun `verify category expense breakdown groups and filters entries correctly`() {
+        val tx1 = TransactionEntry(
+            id = 1L,
+            type = "EXPENSE",
+            dateMillis = 1700000000000L,
+            dateFormatted = "2026-09-01",
+            siteId = 1L,
+            siteName = "Site A",
+            userId = 1L,
+            userName = "Incharge",
+            userMobile = "9876543210",
+            category = "Material Purchase",
+            subCategory = "General",
+            partyName = "UltraTech Cement",
+            description = "50 bags cement",
+            amount = 18000.0,
+            paymentMode = "Cash"
+        )
+        val tx2 = TransactionEntry(
+            id = 2L,
+            type = "EXPENSE",
+            dateMillis = 1700001000000L,
+            dateFormatted = "2026-09-02",
+            siteId = 1L,
+            siteName = "Site A",
+            userId = 1L,
+            userName = "Incharge",
+            userMobile = "9876543210",
+            category = "Material Purchase",
+            subCategory = "General",
+            partyName = "Tata Steel",
+            description = "TMT bars",
+            amount = 32000.0,
+            paymentMode = "Bank"
+        )
+        val tx3 = TransactionEntry(
+            id = 3L,
+            type = "EXPENSE",
+            dateMillis = 1700002000000L,
+            dateFormatted = "2026-09-03",
+            siteId = 1L,
+            siteName = "Site A",
+            userId = 1L,
+            userName = "Incharge",
+            userMobile = "9876543210",
+            category = "Site Labour",
+            subCategory = "General",
+            partyName = "Raju Mason",
+            description = "Daily labour wages",
+            amount = 10000.0,
+            paymentMode = "Cash"
+        )
+
+        val transactions = listOf(tx1, tx2, tx3)
+        val materialTxs = transactions.filter { it.type == "EXPENSE" && it.category == "Material Purchase" }
+        assertEquals(2, materialTxs.size)
+        assertEquals(50000.0, materialTxs.sumOf { it.amount }, 0.01)
+
+        val labourTxs = transactions.filter { it.type == "EXPENSE" && it.category == "Site Labour" }
+        assertEquals(1, labourTxs.size)
+        assertEquals(10000.0, labourTxs.sumOf { it.amount }, 0.01)
     }
 }

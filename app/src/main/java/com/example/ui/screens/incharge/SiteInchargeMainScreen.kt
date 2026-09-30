@@ -1,11 +1,17 @@
 package com.example.ui.screens.incharge
 
+import java.util.Locale
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -29,6 +36,14 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material3.LinearProgressIndicator
+import com.example.ui.components.PaymentModeBadge
+import com.example.ui.viewmodel.CategorySummaryStats
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -121,6 +136,7 @@ fun SiteInchargeMainScreen(
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val stats by viewModel.inchargeStats.collectAsStateWithLifecycle()
     val transactions by viewModel.inchargeTransactions.collectAsStateWithLifecycle()
+    val categoryStats by viewModel.inchargeCategoryExpenseStats.collectAsStateWithLifecycle()
 
     var selectedNavTab by remember { mutableIntStateOf(0) } // 0 = Dashboard, 1 = Add Entry, 2 = Day Book, 3 = Profile
     var addEntryInitialType by remember { mutableIntStateOf(0) } // 0 = Expense, 1 = Income
@@ -139,6 +155,10 @@ fun SiteInchargeMainScreen(
             NavDestination(3, "Staff & Salary", Icons.Default.People, "nav_incharge_staff"),
             NavDestination(4, "Profile", Icons.Default.Person, "nav_incharge_profile")
         )
+    }
+
+    BackHandler(enabled = selectedNavTab != 0) {
+        selectedNavTab = 0
     }
 
     if (showCloudSyncDialog) {
@@ -295,6 +315,8 @@ fun SiteInchargeMainScreen(
                 0 -> InchargeDashboardView(
                     stats = stats,
                     recentTransactions = transactions.take(6),
+                    categoryStats = categoryStats,
+                    allTransactions = transactions,
                     onAddExpenseClick = {
                         addEntryInitialType = 0
                         selectedNavTab = 1
@@ -305,6 +327,10 @@ fun SiteInchargeMainScreen(
                     },
                     onViewAllEntriesClick = { selectedNavTab = 2 },
                     onViewReceipt = { selectedTxForReceipt = it },
+                    onOpenCategoryInDayBook = { cat ->
+                        viewModel.setInchargeSearch(cat)
+                        selectedNavTab = 2
+                    },
                     isWideScreen = windowInfo.isWideScreen
                 )
                 1 -> AddEntryScreen(
@@ -329,12 +355,16 @@ fun SiteInchargeMainScreen(
 private fun InchargeDashboardView(
     stats: com.example.ui.viewmodel.OverallFinancialSummary,
     recentTransactions: List<TransactionEntry>,
+    categoryStats: List<CategorySummaryStats>,
+    allTransactions: List<TransactionEntry>,
     onAddExpenseClick: () -> Unit,
     onAddIncomeClick: () -> Unit,
     onViewAllEntriesClick: () -> Unit,
     onViewReceipt: (TransactionEntry) -> Unit,
+    onOpenCategoryInDayBook: (String) -> Unit,
     isWideScreen: Boolean = false
 ) {
+    var expandedCategories by remember { mutableStateOf(setOf<String>()) }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -553,6 +583,212 @@ private fun InchargeDashboardView(
             }
         }
 
+        // Category-Wise Expense Breakdown Section
+        if (categoryStats.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Category-Wise Expense Breakdown",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Tap category to open and check entries",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            items(categoryStats, key = { "incharge_cat_${it.category}" }) { cat ->
+                val isExpanded = expandedCategories.contains(cat.category)
+                val catTxs = remember(allTransactions, cat.category) {
+                    allTransactions.filter {
+                        it.type == "EXPENSE" && it.category.equals(cat.category, ignoreCase = true)
+                    }.sortedByDescending { it.dateMillis }
+                }
+
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isExpanded) 3.dp else 1.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize()
+                        .testTag("incharge_card_cat_${cat.category.replace(" ", "_")}")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Clickable Header to open / close
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    expandedCategories = if (isExpanded) {
+                                        expandedCategories - cat.category
+                                    } else {
+                                        expandedCategories + cat.category
+                                    }
+                                }
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(AmberContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Category,
+                                        contentDescription = null,
+                                        tint = OnAmberContainer,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = cat.category,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "${cat.count} entries",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "•",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = if (isExpanded) "Tap to close ▲" else "Tap to open ▼",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = formatCurrency(cat.totalAmount),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ExpenseRed
+                                    )
+                                    Text(
+                                        text = "${String.format(Locale.getDefault(), "%.1f", cat.percentage)}% of total",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        expandedCategories = if (isExpanded) {
+                                            expandedCategories - cat.category
+                                        } else {
+                                            expandedCategories + cat.category
+                                        }
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+
+                        LinearProgressIndicator(
+                            progress = { (cat.percentage / 100f).coerceIn(0f, 1f) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(CircleShape),
+                            color = ExpenseRed,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+
+                        AnimatedVisibility(visible = isExpanded) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Entries in ${cat.category} (${catTxs.size})",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    TextButton(
+                                        onClick = { onOpenCategoryInDayBook(cat.category) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Filter Day Book", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+
+                                if (catTxs.isEmpty()) {
+                                    Text(
+                                        text = "No detailed entries found for this category.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    catTxs.forEach { tx ->
+                                        InchargeCategoryEntryItem(
+                                            tx = tx,
+                                            onViewReceipt = onViewReceipt
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Recent Entries Section Header
         item {
             Row(
@@ -599,6 +835,109 @@ private fun InchargeDashboardView(
 
         item {
             Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun InchargeCategoryEntryItem(
+    tx: TransactionEntry,
+    onViewReceipt: (TransactionEntry) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = tx.dateFormatted,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    PaymentModeBadge(mode = tx.paymentMode)
+                }
+
+                Text(
+                    text = "- ${formatCurrency(tx.amount)}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ExpenseRed
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(15.dp)
+                )
+                Text(
+                    text = if (tx.partyName.isNotBlank()) tx.partyName else "Unknown Party",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (tx.description.isNotBlank()) {
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp).padding(top = 2.dp)
+                    )
+                    Text(
+                        text = tx.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (!tx.receiptPhotoUri.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    OutlinedButton(
+                        onClick = { onViewReceipt(tx) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("View Receipt", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
         }
     }
 }

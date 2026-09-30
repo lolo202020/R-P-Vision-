@@ -117,17 +117,11 @@ fun AddEntryScreen(
 
     // Expense Form States
     var selectedExpenseCategory by remember { mutableStateOf(CategoryConstants.EXPENSE_CATEGORIES[0].mainCategory) }
-    var selectedExpenseSubCategory by remember { mutableStateOf(CategoryConstants.EXPENSE_CATEGORIES[0].subCategories[0]) }
-    var selectedMachineryOption by remember { mutableStateOf("Fuel") } // 1. Fuel, 2. Repairing, 3. Rent
-    var selectedMachine by remember { mutableStateOf(CategoryConstants.MACHINERY_LIST.firstOrNull() ?: "JCB") }
-    var machineryDropdownExpanded by remember { mutableStateOf(false) }
     var expenseCategoryDropdownExpanded by remember { mutableStateOf(false) }
-    var expenseSubCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var expensePartyName by remember { mutableStateOf("") }
     var expenseDescription by remember { mutableStateOf("") }
     var expenseAmountStr by remember { mutableStateOf("") }
     var expensePaymentMode by remember { mutableStateOf("Cash") }
-    var expenseRemarks by remember { mutableStateOf("") }
     var expenseError by remember { mutableStateOf<String?>(null) }
 
     // Income Form States
@@ -139,10 +133,6 @@ fun AddEntryScreen(
     var incomePaymentMode by remember { mutableStateOf("Bank") }
     var incomeRemarks by remember { mutableStateOf("") }
     var incomeError by remember { mutableStateOf<String?>(null) }
-
-    val currentSubCategories = CategoryConstants.EXPENSE_CATEGORIES
-        .firstOrNull { it.mainCategory == selectedExpenseCategory }
-        ?.subCategories ?: emptyList()
 
     val scrollState = rememberScrollState()
 
@@ -375,7 +365,6 @@ fun AddEntryScreen(
                                     },
                                     onClick = {
                                         selectedExpenseCategory = cat.mainCategory
-                                        selectedExpenseSubCategory = cat.subCategories.firstOrNull() ?: ""
                                         expenseCategoryDropdownExpanded = false
                                     }
                                 )
@@ -383,168 +372,7 @@ fun AddEntryScreen(
                         }
                     }
 
-                    // 2. Sub-Category / Machinery Options & Equipment Selector
-                    if (selectedExpenseCategory == "Machinery & Equipment") {
-                        // 3 Options for Machinery: 1. Fuel, 2. Repairing, 3. Rent
-                        Text(
-                            text = "Machinery Expense Type * (3 Options)",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CategoryConstants.MACHINERY_EXPENSE_TYPES.forEachIndexed { index, option ->
-                                val isSelected = selectedMachineryOption == option
-                                val optionNumber = index + 1
-                                val icon = when (option) {
-                                    "Fuel" -> Icons.Default.LocalGasStation
-                                    "Repairing" -> Icons.Default.Build
-                                    else -> Icons.Default.Engineering
-                                }
-                                val optColor = when (option) {
-                                    "Fuel" -> MaterialTheme.colorScheme.error
-                                    "Repairing" -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.tertiary
-                                }
-
-                                Surface(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable {
-                                            selectedMachineryOption = option
-                                        }
-                                        .testTag("machinery_opt_${option.lowercase()}"),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (isSelected) optColor else MaterialTheme.colorScheme.surfaceVariant,
-                                    tonalElevation = if (isSelected) 4.dp else 0.dp
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "$optionNumber. ${option.uppercase()}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                            color = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Select Machine / Equipment (60 Items)
-                        ExposedDropdownMenuBox(
-                            expanded = machineryDropdownExpanded,
-                            onExpandedChange = { machineryDropdownExpanded = !machineryDropdownExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedMachine,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Select Machine / Equipment (60 items) *") },
-                                leadingIcon = { Icon(Icons.Default.Engineering, contentDescription = null, tint = ExpenseRed) },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = machineryDropdownExpanded) },
-                                modifier = Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth()
-                                    .testTag("dropdown_machinery_equipment"),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            ExposedDropdownMenu(
-                                expanded = machineryDropdownExpanded,
-                                onDismissRequest = { machineryDropdownExpanded = false }
-                            ) {
-                                CategoryConstants.MACHINERY_LIST.forEachIndexed { index, machine ->
-                                    DropdownMenuItem(
-                                        leadingIcon = {
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        text = "${index + 1}",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        text = {
-                                            Text(
-                                                text = machine,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = if (selectedMachine == machine) FontWeight.Bold else FontWeight.Normal
-                                            )
-                                        },
-                                        onClick = {
-                                            selectedMachine = machine
-                                            machineryDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // Standard Sub-Category Dropdown for other 13 Categories
-                        ExposedDropdownMenuBox(
-                            expanded = expenseSubCategoryDropdownExpanded,
-                            onExpandedChange = { expenseSubCategoryDropdownExpanded = !expenseSubCategoryDropdownExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedExpenseSubCategory,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Sub-Category / Item *") },
-                                leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expenseSubCategoryDropdownExpanded) },
-                                modifier = Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth()
-                                    .testTag("dropdown_expense_subcategory"),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            ExposedDropdownMenu(
-                                expanded = expenseSubCategoryDropdownExpanded,
-                                onDismissRequest = { expenseSubCategoryDropdownExpanded = false }
-                            ) {
-                                currentSubCategories.forEachIndexed { index, subCat ->
-                                    DropdownMenuItem(
-                                        text = { 
-                                            Text(
-                                                text = "${index + 1}. $subCat",
-                                                style = MaterialTheme.typography.bodyMedium
-                                            ) 
-                                        },
-                                        onClick = {
-                                            selectedExpenseSubCategory = subCat
-                                            expenseSubCategoryDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // 3. Party / Vendor Name
+                    // 2. Party / Vendor Name
                     OutlinedTextField(
                         value = expensePartyName,
                         onValueChange = { expensePartyName = it },
@@ -600,7 +428,7 @@ fun AddEntryScreen(
                         }
                     }
 
-                    // 6. Particulars / Description
+                    // 5. Particulars / Description
                     OutlinedTextField(
                         value = expenseDescription,
                         onValueChange = { expenseDescription = it },
@@ -611,18 +439,6 @@ fun AddEntryScreen(
                             .testTag("input_expense_description"),
                         shape = RoundedCornerShape(12.dp),
                         maxLines = 3
-                    )
-
-                    // 7. Remarks
-                    OutlinedTextField(
-                        value = expenseRemarks,
-                        onValueChange = { expenseRemarks = it },
-                        label = { Text("Remarks (Optional)") },
-                        placeholder = { Text("Any special note / reference") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_expense_remarks"),
-                        shape = RoundedCornerShape(12.dp)
                     )
 
                     // Error text
@@ -647,28 +463,21 @@ fun AddEntryScreen(
                                 return@Button
                             }
 
-                            val actualSubCategory = if (selectedExpenseCategory == "Machinery & Equipment") {
-                                "$selectedMachine ($selectedMachineryOption)"
-                            } else {
-                                selectedExpenseSubCategory
-                            }
-
                             expenseError = null
                             viewModel.submitExpense(
                                 dateMillis = selectedDateMillis,
                                 category = selectedExpenseCategory,
-                                subCategory = actualSubCategory,
+                                subCategory = "General",
                                 partyName = expensePartyName.trim(),
                                 description = expenseDescription.trim(),
                                 amount = amount,
                                 paymentMode = expensePaymentMode,
                                 receiptPhotoUri = null,
-                                remarks = expenseRemarks.trim().ifBlank { null },
+                                remarks = null,
                                 onSuccess = {
                                     expenseAmountStr = ""
                                     expensePartyName = ""
                                     expenseDescription = ""
-                                    expenseRemarks = ""
                                     onSubmitted()
                                 }
                             )
