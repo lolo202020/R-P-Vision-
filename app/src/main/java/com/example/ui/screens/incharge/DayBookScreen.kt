@@ -82,6 +82,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.TransactionEntry
 import com.example.ui.components.DayBookPdfExportDialog
+import com.example.ui.components.MonthlyExpensePdfDialog
+import androidx.compose.material.icons.filled.CalendarMonth
 import com.example.ui.components.DateRangeFilterCard
 import com.example.ui.components.ReceiptViewerDialog
 import com.example.ui.components.ResponsiveTransactionsTable
@@ -108,15 +110,27 @@ fun DayBookScreen(
     val fromDate by viewModel.inchargeFromDate.collectAsStateWithLifecycle()
     val toDate by viewModel.inchargeToDate.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val allSites by viewModel.allSites.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var selectedTxForReceipt by remember { mutableStateOf<TransactionEntry?>(null) }
     var showExcelDialog by remember { mutableStateOf(false) }
     var showPdfDialog by remember { mutableStateOf(false) }
+    var showMonthlyPdfDialog by remember { mutableStateOf(false) }
 
     val totalIncome = remember(transactions) { transactions.filter { it.type == "INCOME" }.sumOf { it.amount } }
     val totalExpense = remember(transactions) { transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount } }
     val netBalance = totalIncome - totalExpense
+
+    if (showMonthlyPdfDialog) {
+        MonthlyExpensePdfDialog(
+            transactions = allTransactions,
+            sites = allSites,
+            initialSiteId = currentUser?.assignedSiteId,
+            onDismiss = { showMonthlyPdfDialog = false }
+        )
+    }
 
     if (selectedTxForReceipt != null) {
         ReceiptViewerDialog(
@@ -222,6 +236,20 @@ fun DayBookScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("PDF", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        OutlinedButton(
+                            onClick = { showMonthlyPdfDialog = true },
+                            modifier = Modifier.testTag("btn_daybook_monthly_pdf"),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Monthly PDF", style = MaterialTheme.typography.labelMedium)
                         }
 
                         OutlinedButton(
@@ -498,7 +526,7 @@ fun ExcelImportExportDialog(
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = "Day Book Excel (.xls) Tools",
+                            text = "Day Book Excel (.xlsx) Tools",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -525,7 +553,7 @@ fun ExcelImportExportDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "Export XLS",
+                            "Export XLSX",
                             color = if (selectedTab == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold
@@ -543,7 +571,7 @@ fun ExcelImportExportDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "Import XLS",
+                            "Import XLSX",
                             color = if (selectedTab == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold
@@ -561,7 +589,7 @@ fun ExcelImportExportDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "Sample XLS",
+                            "Sample XLSX",
                             color = if (selectedTab == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold
@@ -658,7 +686,7 @@ fun ExcelImportExportDialog(
                     }
 
                     Text(
-                        text = "• Generates genuine Microsoft Excel .xlsx spreadsheet with Interactive Dropdowns for Category & Sub Category (also Entry Type & Payment Mode).\n• Includes a 'Categories_Master' reference sheet for easy offline editing.\n• Columns: Date, Entry Type, Particular, Category, Sub Category, Site, Description, Payment Mode, Debit, Credit, Balance.",
+                        text = "• Generates genuine Microsoft Excel .xlsx spreadsheet with Interactive Dropdowns for Category, Entry Type & Payment Mode.\n• Updated entry columns matching Day Book (Sub-Category & Remarks removed).\n• Includes a 'Categories_Master' reference sheet for easy offline editing.\n• Columns: Date, Entry Type, Party / Vendor Name, Category, Site, Description, Payment Mode, Debit (₹), Credit (₹), Balance (₹).",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp
@@ -735,12 +763,12 @@ fun ExcelImportExportDialog(
                                     modifier = Modifier.size(36.dp)
                                 )
                                 Text(
-                                    text = "Select .xls or .xlsx Excel Workbook",
+                                    text = "Select .xlsx or .xls Excel Workbook",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Supports standard Day Book columns (Date, Type, Particular, Debit, Credit, etc.)",
+                                    text = "Supports updated 10-column layout & legacy Excel files (Date, Type, Party, Category, Site, Description, Payment Mode, Debit, Credit).",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 11.sp
@@ -926,16 +954,17 @@ fun ExcelImportExportDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "Official Day Book .xls Template",
+                                text = "Official Day Book .xlsx Template",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Download our pre-structured Microsoft Excel workbook (.xls) with standard columns and 4 sample construction entries:\n" +
+                                text = "Download our updated Microsoft Excel workbook (.xlsx) with interactive dropdowns and 4 sample construction entries:\n" +
                                         "1. Client Mobilisation Advance (₹5,00,000 Income)\n" +
                                         "2. Cement & Steel Materials (₹42,000 Expense)\n" +
                                         "3. Labor Union Daily Wages (₹18,500 Expense)\n" +
-                                        "4. JCB Excavator Diesel Fuel (₹6,750 Expense)",
+                                        "4. JCB Excavator Diesel Fuel (₹6,750 Expense)\n\n" +
+                                        "Columns: Date, Entry Type, Party/Vendor, Category, Site, Description, Payment Mode, Debit, Credit, Balance.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.5.sp

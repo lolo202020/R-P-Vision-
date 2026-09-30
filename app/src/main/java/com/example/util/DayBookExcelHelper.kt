@@ -11,19 +11,6 @@ import jxl.Cell
 import jxl.Sheet
 import jxl.Workbook
 import jxl.WorkbookSettings
-import jxl.format.Alignment
-import jxl.format.Border
-import jxl.format.BorderLineStyle
-import jxl.format.Colour
-import jxl.format.UnderlineStyle
-import jxl.format.VerticalAlignment
-import jxl.write.Label
-import jxl.write.Number
-import jxl.write.NumberFormats
-import jxl.write.WritableCellFormat
-import jxl.write.WritableFont
-import jxl.write.WritableSheet
-import jxl.write.WritableWorkbook
 import org.xmlpull.v1.XmlPullParser
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -52,7 +39,6 @@ object DayBookExcelHelper {
         val type: String,
         val particular: String,
         val category: String,
-        val subCategory: String,
         val site: String,
         val desc: String,
         val mode: String,
@@ -80,11 +66,6 @@ object DayBookExcelHelper {
         CategoryConstants.INCOME_CATEGORIES.forEach { cat ->
             cat.subCategories.forEach { set.add(it.trim()) }
         }
-        set.add("Fuel / Diesel")
-        set.add("Machine Repairing")
-        set.add("Machine Rent")
-        set.add("Daily Wages")
-        set.add("Monthly Salary")
         transactions.map { it.subCategory.trim() }
             .filter { it.isNotBlank() && it != "General" && it != "Income Entry" }
             .forEach { set.add(it) }
@@ -93,7 +74,8 @@ object DayBookExcelHelper {
 
     /**
      * Generates a modern Microsoft Excel (.xlsx) file with INTERACTIVE DROPDOWNS
-     * for Category, Sub Category, Entry Type, and Payment Mode via Data Validation.
+     * for Entry Type, Category, and Payment Mode via Data Validation.
+     * Clean 10-column layout: Date, Entry Type, Party / Vendor Name, Category, Site, Description, Payment Mode, Debit, Credit, Balance.
      */
     fun exportDayBookToXlsx(
         context: Context,
@@ -129,7 +111,6 @@ object DayBookExcelHelper {
 
         val sortedList = transactions.sortedWith(compareBy({ it.dateMillis }, { it.id }))
         val categories = getAllCategories(transactions)
-        val subCategories = getAllSubCategories(transactions)
 
         val rowList = mutableListOf<SampleRow>()
         var runningBal = 0.0
@@ -150,7 +131,6 @@ object DayBookExcelHelper {
                     type = if (isIncome) "INCOME" else "EXPENSE",
                     particular = tx.partyName.ifBlank { "-" },
                     category = tx.category.ifBlank { "General" },
-                    subCategory = tx.subCategory.ifBlank { "General" },
                     site = tx.siteName.ifBlank { "Site" },
                     desc = tx.description.ifBlank { "-" },
                     mode = tx.paymentMode.ifBlank { "Cash" },
@@ -169,15 +149,14 @@ object DayBookExcelHelper {
             totalDebit = totDeb,
             totalCredit = totCred,
             closingBalance = runningBal,
-            categories = categories,
-            subCategories = subCategories
+            categories = categories
         )
 
         return file
     }
 
     /**
-     * Backward-compatible alias that outputs the XLSX file with Category/Subcategory dropdowns.
+     * Backward-compatible alias that outputs the XLSX file with Category dropdowns.
      */
     fun exportDayBookToXls(
         context: Context,
@@ -191,7 +170,8 @@ object DayBookExcelHelper {
 
     /**
      * Generates an official REAL Excel sample template (.xlsx) with interactive dropdowns
-     * for Category, Sub Category, Entry Type, and Payment Mode.
+     * for Entry Type, Category, and Payment Mode.
+     * Clean 10-column layout aligned with app entry forms.
      */
     fun generateSampleXlsxFile(context: Context): File {
         val exportDir = File(context.cacheDir, "excel_exports").apply { mkdirs() }
@@ -199,10 +179,10 @@ object DayBookExcelHelper {
         if (file.exists()) file.delete()
 
         val sampleRows = listOf(
-            SampleRow("2026-08-01", "INCOME", "Apex Realty Ltd", "Head Office", "HO se received amount", "Metro City Tower", "Initial mobilisation advance", "Bank", 0.0, 500000.0, 500000.0),
-            SampleRow("2026-08-02", "EXPENSE", "UltraTech Cement", "Material Purchase", "Cement", "Metro City Tower", "100 bags 53 grade cement", "UPI", 42000.0, 0.0, 458000.0),
-            SampleRow("2026-08-03", "EXPENSE", "Shramik Labor Union", "Site Labour", "Daily Wages", "Metro City Tower", "Daily wages for 10 masons & 15 helpers", "Cash", 18500.0, 0.0, 439500.0),
-            SampleRow("2026-08-04", "EXPENSE", "Metro Fuel Station", "Machinery & Equipment", "Fuel / Diesel", "Metro City Tower", "Diesel 75L for JCB excavator", "UPI", 6750.0, 0.0, 432750.0)
+            SampleRow("2026-08-01", "INCOME", "Apex Realty Ltd", "Head Office", "Metro City Tower", "Initial mobilisation advance", "Bank", 0.0, 500000.0, 500000.0),
+            SampleRow("2026-08-02", "EXPENSE", "UltraTech Cement", "Material Purchase", "Metro City Tower", "100 bags 53 grade cement", "UPI", 42000.0, 0.0, 458000.0),
+            SampleRow("2026-08-03", "EXPENSE", "Shramik Labor Union", "Site Labour", "Metro City Tower", "Daily wages for 10 masons & 15 helpers", "Cash", 18500.0, 0.0, 439500.0),
+            SampleRow("2026-08-04", "EXPENSE", "Metro Fuel Station", "Machinery & Equipment", "Metro City Tower", "Diesel 75L for JCB excavator", "UPI", 6750.0, 0.0, 432750.0)
         )
 
         var totDeb = 0.0
@@ -213,18 +193,16 @@ object DayBookExcelHelper {
         }
 
         val categories = getAllCategories()
-        val subCategories = getAllSubCategories()
 
         writeXlsxPackage(
             file = file,
             title = "DAY BOOK OFFICIAL SAMPLE TEMPLATE",
-            subtitle = "Fill your records below using the Category & Sub-Category Dropdown menus, then import directly into Day Book",
+            subtitle = "Fill your records below using the Category & Entry Type dropdown menus, then import directly into Day Book",
             rows = sampleRows,
             totalDebit = totDeb,
             totalCredit = totCred,
             closingBalance = totCred - totDeb,
-            categories = categories,
-            subCategories = subCategories
+            categories = categories
         )
 
         return file
@@ -253,8 +231,7 @@ object DayBookExcelHelper {
         totalDebit: Double,
         totalCredit: Double,
         closingBalance: Double,
-        categories: List<String>,
-        subCategories: List<String>
+        categories: List<String>
     ) {
         val entryTypes = DEFAULT_ENTRY_TYPES
         val paymentModes = DEFAULT_PAYMENT_MODES
@@ -376,20 +353,18 @@ object DayBookExcelHelper {
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <cols>
     <col min="1" max="1" width="16" customWidth="1"/>
-    <col min="2" max="2" width="28" customWidth="1"/>
-    <col min="3" max="3" width="30" customWidth="1"/>
-    <col min="4" max="4" width="18" customWidth="1"/>
+    <col min="2" max="2" width="30" customWidth="1"/>
+    <col min="3" max="3" width="18" customWidth="1"/>
   </cols>
   <sheetData>
     <row r="1" ht="24" customHeight="1">
       <c r="A1" s="4" t="inlineStr"><is><t>Entry Type</t></is></c>
       <c r="B1" s="4" t="inlineStr"><is><t>Category</t></is></c>
-      <c r="C1" s="4" t="inlineStr"><is><t>Sub Category</t></is></c>
-      <c r="D1" s="4" t="inlineStr"><is><t>Payment Mode</t></is></c>
+      <c r="C1" s="4" t="inlineStr"><is><t>Payment Mode</t></is></c>
     </row>
 """)
 
-            val maxMasterRows = maxOf(entryTypes.size, categories.size, subCategories.size, paymentModes.size)
+            val maxMasterRows = maxOf(entryTypes.size, categories.size, paymentModes.size)
             for (idx in 0 until maxMasterRows) {
                 val rNum = idx + 2
                 s2Builder.append("    <row r=\"$rNum\" ht=\"19\" customHeight=\"1\">\n")
@@ -399,11 +374,8 @@ object DayBookExcelHelper {
                 if (idx < categories.size) {
                     s2Builder.append("      <c r=\"B$rNum\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(categories[idx])}</t></is></c>\n")
                 }
-                if (idx < subCategories.size) {
-                    s2Builder.append("      <c r=\"C$rNum\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(subCategories[idx])}</t></is></c>\n")
-                }
                 if (idx < paymentModes.size) {
-                    s2Builder.append("      <c r=\"D$rNum\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(paymentModes[idx])}</t></is></c>\n")
+                    s2Builder.append("      <c r=\"C$rNum\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(paymentModes[idx])}</t></is></c>\n")
                 }
                 s2Builder.append("    </row>\n")
             }
@@ -420,15 +392,14 @@ object DayBookExcelHelper {
   <cols>
     <col min="1" max="1" width="14" customWidth="1"/>
     <col min="2" max="2" width="15" customWidth="1"/>
-    <col min="3" max="3" width="24" customWidth="1"/>
-    <col min="4" max="4" width="22" customWidth="1"/>
-    <col min="5" max="5" width="22" customWidth="1"/>
-    <col min="6" max="6" width="20" customWidth="1"/>
-    <col min="7" max="7" width="28" customWidth="1"/>
-    <col min="8" max="8" width="16" customWidth="1"/>
-    <col min="9" max="9" width="17" customWidth="1"/>
-    <col min="10" max="10" width="17" customWidth="1"/>
-    <col min="11" max="11" width="18" customWidth="1"/>
+    <col min="3" max="3" width="26" customWidth="1"/>
+    <col min="4" max="4" width="24" customWidth="1"/>
+    <col min="5" max="5" width="20" customWidth="1"/>
+    <col min="6" max="6" width="30" customWidth="1"/>
+    <col min="7" max="7" width="16" customWidth="1"/>
+    <col min="8" max="8" width="18" customWidth="1"/>
+    <col min="9" max="9" width="18" customWidth="1"/>
+    <col min="10" max="10" width="18" customWidth="1"/>
   </cols>
   <sheetData>
     <row r="1" ht="26" customHeight="1">
@@ -443,13 +414,12 @@ object DayBookExcelHelper {
       <c r="B4" s="4" t="inlineStr"><is><t>Entry Type</t></is></c>
       <c r="C4" s="4" t="inlineStr"><is><t>Party / Vendor Name</t></is></c>
       <c r="D4" s="4" t="inlineStr"><is><t>Category</t></is></c>
-      <c r="E4" s="4" t="inlineStr"><is><t>Sub Category</t></is></c>
-      <c r="F4" s="4" t="inlineStr"><is><t>Site</t></is></c>
-      <c r="G4" s="4" t="inlineStr"><is><t>Description</t></is></c>
-      <c r="H4" s="4" t="inlineStr"><is><t>Payment Mode</t></is></c>
-      <c r="I4" s="4" t="inlineStr"><is><t>Debit (₹)</t></is></c>
-      <c r="J4" s="4" t="inlineStr"><is><t>Credit (₹)</t></is></c>
-      <c r="K4" s="4" t="inlineStr"><is><t>Balance (₹)</t></is></c>
+      <c r="E4" s="4" t="inlineStr"><is><t>Site</t></is></c>
+      <c r="F4" s="4" t="inlineStr"><is><t>Description</t></is></c>
+      <c r="G4" s="4" t="inlineStr"><is><t>Payment Mode</t></is></c>
+      <c r="H4" s="4" t="inlineStr"><is><t>Debit (₹)</t></is></c>
+      <c r="I4" s="4" t="inlineStr"><is><t>Credit (₹)</t></is></c>
+      <c r="J4" s="4" t="inlineStr"><is><t>Balance (₹)</t></is></c>
     </row>
 """)
 
@@ -460,13 +430,12 @@ object DayBookExcelHelper {
                 s1Builder.append("      <c r=\"B$curRow\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(row.type)}</t></is></c>\n")
                 s1Builder.append("      <c r=\"C$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.particular)}</t></is></c>\n")
                 s1Builder.append("      <c r=\"D$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.category)}</t></is></c>\n")
-                s1Builder.append("      <c r=\"E$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.subCategory)}</t></is></c>\n")
-                s1Builder.append("      <c r=\"F$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.site)}</t></is></c>\n")
-                s1Builder.append("      <c r=\"G$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.desc)}</t></is></c>\n")
-                s1Builder.append("      <c r=\"H$curRow\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(row.mode)}</t></is></c>\n")
-                s1Builder.append("      <c r=\"I$curRow\" s=\"6\"><v>${String.format(Locale.US, "%.2f", row.debit)}</v></c>\n")
-                s1Builder.append("      <c r=\"J$curRow\" s=\"7\"><v>${String.format(Locale.US, "%.2f", row.credit)}</v></c>\n")
-                s1Builder.append("      <c r=\"K$curRow\" s=\"5\"><v>${String.format(Locale.US, "%.2f", row.balance)}</v></c>\n")
+                s1Builder.append("      <c r=\"E$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.site)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"F$curRow\" s=\"0\" t=\"inlineStr\"><is><t>${escapeXml(row.desc)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"G$curRow\" s=\"1\" t=\"inlineStr\"><is><t>${escapeXml(row.mode)}</t></is></c>\n")
+                s1Builder.append("      <c r=\"H$curRow\" s=\"6\"><v>${String.format(Locale.US, "%.2f", row.debit)}</v></c>\n")
+                s1Builder.append("      <c r=\"I$curRow\" s=\"7\"><v>${String.format(Locale.US, "%.2f", row.credit)}</v></c>\n")
+                s1Builder.append("      <c r=\"J$curRow\" s=\"5\"><v>${String.format(Locale.US, "%.2f", row.balance)}</v></c>\n")
                 s1Builder.append("    </row>\n")
                 curRow++
             }
@@ -475,29 +444,26 @@ object DayBookExcelHelper {
             val totalRowNum = curRow
             s1Builder.append("    <row r=\"$totalRowNum\" ht=\"22\" customHeight=\"1\">\n")
             s1Builder.append("      <c r=\"A$totalRowNum\" s=\"8\" t=\"inlineStr\"><is><t>TOTAL / NET CLOSING BALANCE</t></is></c>\n")
-            s1Builder.append("      <c r=\"I$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", totalDebit)}</v></c>\n")
-            s1Builder.append("      <c r=\"J$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", totalCredit)}</v></c>\n")
-            s1Builder.append("      <c r=\"K$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", closingBalance)}</v></c>\n")
+            s1Builder.append("      <c r=\"H$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", totalDebit)}</v></c>\n")
+            s1Builder.append("      <c r=\"I$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", totalCredit)}</v></c>\n")
+            s1Builder.append("      <c r=\"J$totalRowNum\" s=\"9\"><v>${String.format(Locale.US, "%.2f", closingBalance)}</v></c>\n")
             s1Builder.append("    </row>\n")
 
             s1Builder.append("""  </sheetData>
   <mergeCells count="3">
-    <mergeCell ref="A1:K1"/>
-    <mergeCell ref="A2:K2"/>
-    <mergeCell ref="A$totalRowNum:H$totalRowNum"/>
+    <mergeCell ref="A1:J1"/>
+    <mergeCell ref="A2:J2"/>
+    <mergeCell ref="A$totalRowNum:G$totalRowNum"/>
   </mergeCells>
-  <dataValidations count="4">
+  <dataValidations count="3">
     <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="B5:B1000">
       <formula1>Categories_Master!${'$'}A${'$'}2:${'$'}A${'$'}${entryTypes.size + 1}</formula1>
     </dataValidation>
     <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="D5:D1000">
       <formula1>Categories_Master!${'$'}B${'$'}2:${'$'}B${'$'}${categories.size + 1}</formula1>
     </dataValidation>
-    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="E5:E1000">
-      <formula1>Categories_Master!${'$'}C${'$'}2:${'$'}C${'$'}${subCategories.size + 1}</formula1>
-    </dataValidation>
-    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="H5:H1000">
-      <formula1>Categories_Master!${'$'}D${'$'}2:${'$'}D${'$'}${paymentModes.size + 1}</formula1>
+    <dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="G5:G1000">
+      <formula1>Categories_Master!${'$'}C${'$'}2:${'$'}C${'$'}${paymentModes.size + 1}</formula1>
     </dataValidation>
   </dataValidations>
 </worksheet>""")
@@ -508,7 +474,9 @@ object DayBookExcelHelper {
     }
 
     /**
-     * Parses an uploaded Excel (.xls or .xlsx) or tabular file from Uri.
+     * Parses an uploaded Excel (.xls or .xlsx) or tabular CSV/HTML file from Uri.
+     * Supports both the new 10-column layout and legacy 11-column layouts,
+     * as well as multi-lingual headers (Hindi & English).
      */
     fun parseExcelFile(
         context: Context,
@@ -553,7 +521,6 @@ object DayBookExcelHelper {
             }
             workbook.close()
         } catch (e: Exception) {
-            // Not a binary XLS file, fallback to next parser
             parsedAsJxl = false
         }
 
@@ -594,11 +561,17 @@ object DayBookExcelHelper {
             return ImportResult(emptyList(), listOf("No data rows found in the Excel file."), 0, 0.0, 0.0)
         }
 
-        // Find Header Row Index
+        // Find Header Row Index (Search within first 8 rows)
         var headerRowIndex = -1
         for (i in 0 until minOf(8, rawRows.size)) {
             val row = rawRows[i].map { it.lowercase() }
-            if (row.any { it.contains("date") } && (row.any { it.contains("particular") } || row.any { it.contains("amount") } || row.any { it.contains("debit") } || row.any { it.contains("category") } || row.any { it.contains("type") })) {
+            val hasDate = row.any { it.contains("date") || it.contains("tarikh") || it.contains("दिनांक") || it.contains("तारीख") }
+            val hasFinancial = row.any {
+                it.contains("particular") || it.contains("amount") || it.contains("debit") ||
+                it.contains("credit") || it.contains("category") || it.contains("type") ||
+                it.contains("पार्टी") || it.contains("राशि") || it.contains("खर्च")
+            }
+            if (hasDate && hasFinancial) {
                 headerRowIndex = i
                 break
             }
@@ -624,41 +597,55 @@ object DayBookExcelHelper {
         for ((idx, name) in headerRow.withIndex()) {
             val n = name.lowercase().trim()
             when {
-                n.contains("date") && colDate == -1 -> colDate = idx
-                (n == "type" || n.contains("entry type")) && colType == -1 -> colType = idx
-                (n.contains("particular") || n.contains("party") || n.contains("vendor")) && colParticular == -1 -> colParticular = idx
-                (n == "sub category" || n.contains("sub-category") || n.contains("subcategory")) && colSubCategory == -1 -> colSubCategory = idx
-                n.contains("category") && colCategory == -1 -> colCategory = idx
-                n.contains("site") && colSite == -1 -> colSite = idx
-                (n.contains("description") || n.contains("desc") || n.contains("details")) && colDescription == -1 -> colDescription = idx
-                (n.contains("mode") || n.contains("payment")) && colMode == -1 -> colMode = idx
-                n.contains("debit") && colDebit == -1 -> colDebit = idx
-                n.contains("credit") && colCredit == -1 -> colCredit = idx
-                n.contains("amount") && colAmount == -1 -> colAmount = idx
-                n.contains("remark") && colRemarks == -1 -> colRemarks = idx
+                (n.contains("date") || n.contains("tarikh") || n.contains("दिनांक") || n.contains("तारीख")) && colDate == -1 -> colDate = idx
+                (n == "type" || n.contains("entry type") || n.contains("in/out") || n.contains("प्रकार")) && colType == -1 -> colType = idx
+                (n.contains("particular") || n.contains("party") || n.contains("vendor") || n.contains("naam") || n.contains("नाम") || n.contains("पार्टी")) && colParticular == -1 -> colParticular = idx
+                (n == "sub category" || n.contains("sub-category") || n.contains("subcategory") || n.contains("item") || n.contains("उप श्रेणी")) && colSubCategory == -1 -> colSubCategory = idx
+                (n.contains("category") || n.contains("mad") || n.contains("head") || n.contains("श्रेणी") || n.contains("मद")) && colCategory == -1 -> colCategory = idx
+                (n.contains("site") || n.contains("project") || n.contains("location") || n.contains("साइट") || n.contains("प्रोजेक्ट")) && colSite == -1 -> colSite = idx
+                (n.contains("description") || n.contains("desc") || n.contains("details") || n.contains("narration") || n.contains("विवरण")) && colDescription == -1 -> colDescription = idx
+                (n.contains("mode") || n.contains("payment") || n.contains("भुगतान") || n.contains("माध्यम")) && colMode == -1 -> colMode = idx
+                (n.contains("debit") || n.contains("dr") || n.contains("expense") || n.contains("खर्च") || n.contains("व्यय")) && colDebit == -1 -> colDebit = idx
+                (n.contains("credit") || n.contains("cr") || n.contains("income") || n.contains("जमा") || n.contains("आमदनी") || n.contains("आय")) && colCredit == -1 -> colCredit = idx
+                (n.contains("amount") || n.contains("total") || n.contains("rs") || n.contains("₹") || n.contains("राशि") || n.contains("रुपए")) && colAmount == -1 -> colAmount = idx
+                (n.contains("remark") || n.contains("टिप्पणी")) && colRemarks == -1 -> colRemarks = idx
             }
         }
 
-        // Defaults: If no headers were detected at all, assume standard column order (0 to 9)
+        // Defaults: If no headers were detected, infer column positions from row size
         if (headerRowIndex == -1) {
-            if (colDate == -1) colDate = 0
-            if (colType == -1) colType = 1
-            if (colParticular == -1) colParticular = 2
-            if (colCategory == -1) colCategory = 3
-            if (colSubCategory == -1) colSubCategory = 4
-            if (colSite == -1) colSite = 5
-            if (colDescription == -1) colDescription = 6
-            if (colMode == -1) colMode = 7
-            if (colDebit == -1 && colAmount == -1) colDebit = 8
-            if (colCredit == -1 && colAmount == -1) colCredit = 9
+            val sampleSize = dataRows.firstOrNull()?.size ?: 10
+            if (sampleSize >= 11) {
+                // Legacy 11-column format: Date, Type, Particular, Category, SubCategory, Site, Desc, Mode, Debit, Credit, Balance
+                colDate = 0
+                colType = 1
+                colParticular = 2
+                colCategory = 3
+                colSubCategory = 4
+                colSite = 5
+                colDescription = 6
+                colMode = 7
+                colDebit = 8
+                colCredit = 9
+            } else {
+                // Modern 10-column format: Date, Type, Particular, Category, Site, Desc, Mode, Debit, Credit, Balance
+                colDate = 0
+                colType = 1
+                colParticular = 2
+                colCategory = 3
+                colSite = 4
+                colDescription = 5
+                colMode = 6
+                colDebit = 7
+                colCredit = 8
+            }
         } else {
             // When header row exists, ensure date and amount fallback if not named standard
             if (colDate == -1) colDate = 0
             if (colDebit == -1 && colCredit == -1 && colAmount == -1) {
-                // Look for any header with numeric keywords or fallback to last columns
                 for ((idx, name) in headerRow.withIndex()) {
                     val n = name.lowercase().trim()
-                    if (n.contains("rs") || n.contains("rupee") || n.contains("val") || n.contains("cost") || n.contains("price")) {
+                    if (n.contains("rs") || n.contains("rupee") || n.contains("val") || n.contains("cost") || n.contains("price") || n.contains("रुपया")) {
                         colAmount = idx
                         break
                     }
@@ -678,11 +665,12 @@ object DayBookExcelHelper {
             // Skip total summary rows
             val firstCell = row.firstOrNull()?.trim()?.lowercase() ?: ""
             val secondCell = row.getOrNull(1)?.trim()?.lowercase() ?: ""
-            if (firstCell.startsWith("total") || firstCell.startsWith("closing") || secondCell.startsWith("total") || firstCell.contains("net balance")) {
+            if (firstCell.startsWith("total") || firstCell.startsWith("closing") || secondCell.startsWith("total") ||
+                firstCell.contains("net balance") || firstCell.contains("कुल") || firstCell.contains("बैलेंस")) {
                 continue
             }
 
-            val dateRaw = row.getOrNull(colDate)?.trim() ?: ""
+            val dateRaw = if (colDate >= 0) row.getOrNull(colDate)?.trim() ?: "" else ""
             if (dateRaw.isBlank()) {
                 errors.add("Row $humanRowNum: Missing date.")
                 continue
@@ -695,9 +683,23 @@ object DayBookExcelHelper {
             val creditRaw = if (colCredit >= 0) row.getOrNull(colCredit)?.trim() else null
             val amountRaw = if (colAmount >= 0) row.getOrNull(colAmount)?.trim() else null
 
-            val debitVal = debitRaw?.replace(",", "")?.replace("₹", "")?.toDoubleOrNull() ?: 0.0
-            val creditVal = creditRaw?.replace(",", "")?.replace("₹", "")?.toDoubleOrNull() ?: 0.0
-            val amountVal = amountRaw?.replace(",", "")?.replace("₹", "")?.toDoubleOrNull() ?: 0.0
+            var debitVal = debitRaw?.replace(",", "")?.replace("₹", "")?.replace(" ", "")?.toDoubleOrNull() ?: 0.0
+            var creditVal = creditRaw?.replace(",", "")?.replace("₹", "")?.replace(" ", "")?.toDoubleOrNull() ?: 0.0
+            var amountVal = amountRaw?.replace(",", "")?.replace("₹", "")?.replace(" ", "")?.toDoubleOrNull() ?: 0.0
+
+            // If negative amount was provided in debit/credit column
+            if (amountVal < 0.0) {
+                debitVal = Math.abs(amountVal)
+                amountVal = 0.0
+            }
+            if (debitVal < 0.0) {
+                creditVal = Math.abs(debitVal)
+                debitVal = 0.0
+            }
+            if (creditVal < 0.0) {
+                debitVal = Math.abs(creditVal)
+                creditVal = 0.0
+            }
 
             val finalType: String
             val finalAmount: Double
@@ -712,10 +714,10 @@ object DayBookExcelHelper {
                     finalAmount = creditVal
                 }
                 amountVal > 0.0 -> {
-                    finalType = if (typeRaw.contains("INC") || typeRaw.contains("CREDIT")) "INCOME" else "EXPENSE"
+                    finalType = if (typeRaw.contains("INC") || typeRaw.contains("CREDIT") || typeRaw.contains("जमा") || typeRaw.contains("आय")) "INCOME" else "EXPENSE"
                     finalAmount = amountVal
                 }
-                typeRaw.contains("INC") || typeRaw.contains("CREDIT") -> {
+                typeRaw.contains("INC") || typeRaw.contains("CREDIT") || typeRaw.contains("जमा") || typeRaw.contains("आय") -> {
                     finalType = "INCOME"
                     finalAmount = maxOf(creditVal, amountVal)
                 }
@@ -732,7 +734,7 @@ object DayBookExcelHelper {
 
             val particular = if (colParticular >= 0) row.getOrNull(colParticular)?.trim() ?: "" else ""
             val category = (if (colCategory >= 0) row.getOrNull(colCategory)?.trim() else null)?.ifBlank { "General" } ?: "General"
-            val subCategory = (if (colSubCategory >= 0) row.getOrNull(colSubCategory)?.trim() else null)?.ifBlank { "General" } ?: "General"
+            val subCategory = if (colSubCategory >= 0) (row.getOrNull(colSubCategory)?.trim()?.ifBlank { "General" } ?: "General") else "General"
             val site = (if (colSite >= 0) row.getOrNull(colSite)?.trim() else null)?.ifBlank { defaultSiteName } ?: defaultSiteName
             val desc = if (colDescription >= 0) row.getOrNull(colDescription)?.trim() ?: "" else ""
             val mode = (if (colMode >= 0) row.getOrNull(colMode)?.trim() else null)?.ifBlank { "Cash" } ?: "Cash"

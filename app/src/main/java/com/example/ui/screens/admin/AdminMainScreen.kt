@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import com.example.ui.screens.incharge.ExcelImportExportDialog
+import com.example.ui.components.MonthlyExpensePdfDialog
 import com.example.data.model.User
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.Storage
@@ -2069,9 +2070,20 @@ private fun AdminMasterDayBookView(
     isWideScreen: Boolean = false
 ) {
     val context = LocalContext.current
+    val allTxs by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allSitesList by viewModel.allSites.collectAsStateWithLifecycle()
     var showExcelDialog by remember { mutableStateOf(false) }
     var showPdfDialog by remember { mutableStateOf(false) }
+    var showMonthlyPdfDialog by remember { mutableStateOf(false) }
     var viewMode by remember(isWideScreen) { mutableStateOf(if (isWideScreen) "TABLE" else "CARDS") }
+
+    if (showMonthlyPdfDialog) {
+        MonthlyExpensePdfDialog(
+            transactions = allTxs,
+            sites = allSitesList,
+            onDismiss = { showMonthlyPdfDialog = false }
+        )
+    }
 
     if (showPdfDialog) {
         DayBookPdfExportDialog(
@@ -2264,6 +2276,20 @@ private fun AdminMasterDayBookView(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("PDF", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showMonthlyPdfDialog = true },
+                        modifier = Modifier.testTag("btn_admin_monthly_pdf"),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Monthly PDF", style = MaterialTheme.typography.labelMedium)
                     }
 
                     OutlinedButton(

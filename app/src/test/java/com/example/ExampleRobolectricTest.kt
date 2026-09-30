@@ -3,12 +3,14 @@ package com.example
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.model.CategoryConstants
+import com.example.data.model.Site
 import com.example.data.model.StaffAttendance
 import com.example.data.model.StaffMember
 import com.example.data.model.TransactionEntry
 import com.example.util.AttendancePdfHelper
 import com.example.util.DayBookExcelHelper
 import com.example.util.DayBookPdfHelper
+import com.example.util.MonthlyExpensePdfHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -275,5 +277,81 @@ class ExampleRobolectricTest {
         val labourTxs = transactions.filter { it.type == "EXPENSE" && it.category == "Site Labour" }
         assertEquals(1, labourTxs.size)
         assertEquals(10000.0, labourTxs.sumOf { it.amount }, 0.01)
+    }
+
+    @Test
+    fun `verify monthly expense report data builder calculates site and category summaries`() {
+        val sites = listOf(
+            Site(id = 1, name = "Tower Alpha", code = "TWR-A", location = "Sector 62", clientName = "Apex", budget = 5000000.0, inchargeName = "Incharge 1"),
+            Site(id = 2, name = "Bridge Beta", code = "BRG-B", location = "Zone 4", clientName = "City Infra", budget = 8000000.0, inchargeName = "Incharge 2")
+        )
+
+        val txs = listOf(
+            TransactionEntry(id = 1, type = "EXPENSE", dateMillis = 1000L, dateFormatted = "2026-09-05", siteId = 1, siteName = "Tower Alpha", userId = 1, userName = "U1", userMobile = "1", category = "Material Purchase", subCategory = "Cement", partyName = "P1", description = "D1", amount = 60000.0, paymentMode = "Bank"),
+            TransactionEntry(id = 2, type = "EXPENSE", dateMillis = 2000L, dateFormatted = "2026-09-10", siteId = 1, siteName = "Tower Alpha", userId = 1, userName = "U1", userMobile = "1", category = "Site Labour", subCategory = "Wages", partyName = "P2", description = "D2", amount = 40000.0, paymentMode = "Cash"),
+            TransactionEntry(id = 3, type = "EXPENSE", dateMillis = 3000L, dateFormatted = "2026-09-15", siteId = 2, siteName = "Bridge Beta", userId = 2, userName = "U2", userMobile = "2", category = "Machinery & Equipment", subCategory = "Diesel", partyName = "P3", description = "D3", amount = 50000.0, paymentMode = "UPI"),
+            TransactionEntry(id = 4, type = "EXPENSE", dateMillis = 4000L, dateFormatted = "2026-08-20", siteId = 1, siteName = "Tower Alpha", userId = 1, userName = "U1", userMobile = "1", category = "Material Purchase", subCategory = "Steel", partyName = "P4", description = "Old month", amount = 99999.0, paymentMode = "Cash"),
+            TransactionEntry(id = 5, type = "INCOME", dateMillis = 5000L, dateFormatted = "2026-09-01", siteId = 1, siteName = "Tower Alpha", userId = 1, userName = "U1", userMobile = "1", category = "Head Office", subCategory = "Advance", partyName = "HO", description = "Income should be ignored", amount = 100000.0, paymentMode = "Bank")
+        )
+
+        val report = MonthlyExpensePdfHelper.buildMonthlyReportData(
+            transactions = txs,
+            sites = sites,
+            yearMonth = "2026-09",
+            siteIdFilter = null
+        )
+
+        assertEquals("2026-09", report.yearMonth)
+        assertEquals(150000.0, report.totalExpense, 0.01)
+        assertEquals(3, report.totalTransactions)
+        assertEquals(2, report.totalSitesCount)
+
+        // Site 1 had 60k + 40k = 100k
+        val site1Summary = report.siteSummaries.find { it.siteId == 1L }
+        assertNotNull(site1Summary)
+        assertEquals(100000.0, site1Summary!!.totalExpense, 0.01)
+        assertEquals(2, site1Summary.txCount)
+        assertEquals(66.67, site1Summary.percentageOfTotal, 0.5)
+
+        // Site 2 had 50k
+        val site2Summary = report.siteSummaries.find { it.siteId == 2L }
+        assertNotNull(site2Summary)
+        assertEquals(50000.0, site2Summary!!.totalExpense, 0.01)
+        assertEquals(1, site2Summary.txCount)
+        assertEquals(33.33, site2Summary.percentageOfTotal, 0.5)
+
+        // Top category across all sites should be Material Purchase (60k)
+        val topCategory = report.overallCategoryTotals.firstOrNull()
+        assertNotNull(topCategory)
+        assertEquals("Material Purchase", topCategory?.category)
+        assertEquals(60000.0, topCategory?.totalAmount ?: 0.0, 0.01)
+    }
+
+    @Test
+    fun `verify monthly expense currency format and report calculations`() {
+        val formatted = MonthlyExpensePdfHelper.formatCurrency(45000.0)
+        assertTrue(formatted.contains("45,000.00"))
+        assertTrue(formatted.contains("₹"))
+
+        val sites = listOf(
+            Site(id = 1, name = "Tower Alpha", code = "TWR-A", location = "Sector 62", clientName = "Apex", budget = 5000000.0, inchargeName = "Incharge 1")
+        )
+        val txs = listOf(
+            TransactionEntry(id = 1, type = "EXPENSE", dateMillis = 1000L, dateFormatted = "2026-09-05", siteId = 1, siteName = "Tower Alpha", userId = 1, userName = "U1", userMobile = "1", category = "Material Purchase", subCategory = "Cement", partyName = "UltraTech", description = "Cement bags", amount = 45000.0, paymentMode = "Bank")
+        )
+
+        val reportData = MonthlyExpensePdfHelper.buildMonthlyReportData(
+            transactions = txs,
+            sites = sites,
+            yearMonth = "2026-09",
+            siteIdFilter = 1L
+        )
+
+        assertEquals("September 2026", reportData.monthDisplay)
+        assertEquals(45000.0, reportData.totalExpense, 0.01)
+        assertEquals(1, reportData.siteSummaries.size)
+        assertEquals("Tower Alpha", reportData.siteSummaries[0].siteName)
+        assertEquals(1, reportData.siteSummaries[0].categoryBreakdown.size)
+        assertEquals("Material Purchase", reportData.siteSummaries[0].categoryBreakdown[0].category)
     }
 }
